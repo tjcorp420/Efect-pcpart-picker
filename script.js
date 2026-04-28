@@ -1968,7 +1968,6 @@ function showShareButton(text) {
   const terminal = document.querySelector(".emx-export-terminal");
   
   if (!terminal) {
-    showToast("Export terminal not found.", "bad");
     return;
   }
   
@@ -1984,7 +1983,7 @@ function showShareButton(text) {
   actions.innerHTML = `
     <button id="shareReportOverlayBtn" type="button">SHARE REPORT</button>
     <button id="downloadReportOverlayBtn" type="button">DOWNLOAD TXT</button>
-    <button id="saveImageReportBtn" type="button">SAVE REPORT IMAGE</button>
+    <button id="saveReportImageOverlayBtn" type="button">SAVE REPORT IMAGE</button>
     <button id="manualCopyOverlayBtn" type="button">MANUAL COPY</button>
     <button id="closeExportOverlayBtn" type="button">DONE</button>
   `;
@@ -1993,7 +1992,7 @@ function showShareButton(text) {
   
   const shareBtn = document.getElementById("shareReportOverlayBtn");
   const downloadBtn = document.getElementById("downloadReportOverlayBtn");
-  const imageBtn = document.getElementById("saveImageReportBtn");
+  const saveImageBtn = document.getElementById("saveReportImageOverlayBtn");
   const manualBtn = document.getElementById("manualCopyOverlayBtn");
   const closeBtn = document.getElementById("closeExportOverlayBtn");
   
@@ -2009,19 +2008,22 @@ function showShareButton(text) {
           title: "EMX Performance Report",
           text: text
         });
-      } catch (error) {}
+        
+        showToast("Report shared.", "good");
+      } catch (error) {
+        showToast("Share cancelled.", "warn");
+      }
     });
   }
   
   if (downloadBtn) {
     downloadBtn.addEventListener("click", () => {
-      downloadTextReport(text);
+      downloadReportTxt(text);
     });
   }
   
-  if (imageBtn) {
-    imageBtn.addEventListener("click", () => {
-      showToast("Building report image...", "warn");
+  if (saveImageBtn) {
+    saveImageBtn.addEventListener("click", () => {
       downloadReportImage();
     });
   }
@@ -2038,168 +2040,388 @@ function showShareButton(text) {
   }
 }
 
-function downloadReportFile(text) {
-  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
+function downloadReportTxt(text) {
+  const blob = new Blob([text], {
+    type: "text/plain;charset=utf-8"
+  });
   
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
+  
+  link.download = "emx-performance-report.txt";
   link.href = url;
-  link.download = "EMX-Performance-Report.txt";
+  link.style.display = "none";
   
   document.body.appendChild(link);
   link.click();
   link.remove();
   
-  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1000);
   
-  showToast("Report download started.", "good");
+  showToast("Report TXT downloaded.", "good");
 }
 
-function downloadReportImage() {
+async function downloadReportImage() {
+  try {
+    showToast("Generating report image...", "good");
+
+    const canvas = await buildReportCanvas();
+    const dataUrl = canvas.toDataURL("image/png");
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        showToast("Could not create report image.", "bad");
+        return;
+      }
+
+      showReportImagePreview(dataUrl, blob);
+    }, "image/png");
+  } catch (error) {
+    console.error(error);
+    showToast("Report image failed.", "bad");
+  }
+}
+
+async function buildReportCanvas() {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
-  
+
+  if (!ctx) {
+    throw new Error("Canvas not supported");
+  }
+
   canvas.width = 1080;
   canvas.height = 1350;
-  
+
   const score = calculateFpsScore();
   const tier = getPerformanceTier(score);
   const selectedParts = getSelectedPartsArray();
-  
+
   const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, "#020403");
-  gradient.addColorStop(0.55, "#07120a");
-  gradient.addColorStop(1, "#12051a");
+  gradient.addColorStop(0, "#010302");
+  gradient.addColorStop(0.42, "#061108");
+  gradient.addColorStop(0.72, "#08070f");
+  gradient.addColorStop(1, "#170520");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
+
+  ctx.save();
+  ctx.globalAlpha = 0.24;
+  ctx.fillStyle = "#39ff14";
+  ctx.filter = "blur(70px)";
+  ctx.beginPath();
+  ctx.arc(220, 240, 180, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#b026ff";
+  ctx.beginPath();
+  ctx.arc(900, 300, 190, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#39ff14";
+  ctx.beginPath();
+  ctx.arc(850, 1160, 180, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.shadowColor = "#39ff14";
+  ctx.shadowBlur = 34;
+  ctx.strokeStyle = "#39ff14";
+  ctx.lineWidth = 5;
+  roundRect(ctx, 70, 70, 940, 1210, 48, false, true);
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(176, 38, 255, 0.35)";
+  ctx.lineWidth = 3;
+  roundRect(ctx, 86, 86, 908, 1178, 40, false, true);
+  ctx.restore();
+
+  await drawReportLogo(ctx);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 52px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("PERFORMANCE REPORT", 540, 295);
+
+  ctx.fillStyle = "#39ff14";
   ctx.shadowColor = "#39ff14";
   ctx.shadowBlur = 28;
-  ctx.strokeStyle = "#39ff14";
-  ctx.lineWidth = 4;
-  roundRect(ctx, 70, 70, 940, 1210, 46, false, true);
-  
+  ctx.font = "900 118px Arial";
+  ctx.fillText(tier.grade, 540, 440);
+
   ctx.shadowBlur = 0;
-  ctx.fillStyle = "#39ff14";
-  ctx.font = "900 74px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("EMX", 540, 175);
-  
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "900 48px Arial";
-  ctx.fillText("PERFORMANCE REPORT", 540, 255);
-  
-  ctx.fillStyle = "#39ff14";
-  ctx.font = "900 96px Arial";
-  ctx.fillText(tier.grade, 540, 390);
-  
   ctx.fillStyle = "#ffffff";
   ctx.font = "900 44px Arial";
-  ctx.fillText(tier.label.toUpperCase(), 540, 455);
-  
-  drawStat(ctx, "TOTAL", formatMoney(calculateTotalPrice()), 130, 540);
-  drawStat(ctx, "WATTAGE", calculateWattage() + "W", 560, 540);
-  drawStat(ctx, "FPS SCORE", String(score), 130, 700);
-  drawStat(ctx, "STATUS", getBuildStatus(), 560, 700);
-  
+  ctx.fillText(tier.label.toUpperCase(), 540, 505);
+
+  drawStat(ctx, "TOTAL", formatMoney(calculateTotalPrice()), 130, 590);
+  drawStat(ctx, "WATTAGE", calculateWattage() + "W", 560, 590);
+  drawStat(ctx, "FPS SCORE", String(score), 130, 760);
+  drawStat(ctx, "STATUS", getBuildStatus(), 560, 760);
+
   ctx.fillStyle = "#39ff14";
-  ctx.font = "900 34px Arial";
+  ctx.font = "900 38px Arial";
   ctx.textAlign = "left";
-  ctx.fillText("SELECTED PARTS", 130, 900);
-  
+  ctx.fillText("SELECTED PARTS", 130, 960);
+
   ctx.fillStyle = "#ffffff";
-  ctx.font = "800 25px Arial";
-  
-  let y = 955;
-  
+  ctx.font = "800 27px Arial";
+
+  let y = 1018;
+
   if (selectedParts.length === 0) {
     ctx.fillText("No parts selected yet.", 130, y);
   } else {
     selectedParts.slice(0, 8).forEach((item) => {
-      const line = categoryLabels[item.category] + ": " + item.part.name;
-      ctx.fillText(line.slice(0, 48), 130, y);
-      y += 45;
+      const label = categoryLabels[item.category];
+      const line = label + ": " + item.part.name;
+      drawWrappedText(ctx, line, 130, y, 820, 34, 1);
+      y += 47;
     });
   }
-  
-  ctx.fillStyle = "rgba(255,255,255,0.65)";
-  ctx.font = "800 22px Arial";
+
+  const warnings = getCompatibilityWarnings();
+  const badCount = warnings.filter((warning) => warning.type === "bad").length;
+
+  ctx.fillStyle = badCount > 0 ? "#ff315d" : "#39ff14";
+  ctx.font = "900 28px Arial";
   ctx.textAlign = "center";
-  ctx.fillText("Generated by EMX PC Builder", 540, 1215);
-  
-  const link = document.createElement("a");
-  link.download = "emx-performance-report.png";
-  link.href = canvas.toDataURL("image/png");
-  link.click();
-  
-  showToast("Report image downloaded.", "good");
+  ctx.fillText(
+    badCount > 0 ? "FIX COMPATIBILITY BEFORE BUYING" : "BUILD CHECK COMPLETE",
+    540,
+    1210
+  );
+
+  ctx.fillStyle = "rgba(255,255,255,0.62)";
+  ctx.font = "800 23px Arial";
+  ctx.fillText("Generated by EMX PC Builder", 540, 1248);
+
+  return canvas;
+}
+
+function drawReportLogo(ctx) {
+  return new Promise((resolve) => {
+    const logo = new Image();
+
+    logo.onload = () => {
+      ctx.save();
+
+      ctx.shadowColor = "#39ff14";
+      ctx.shadowBlur = 36;
+
+      ctx.beginPath();
+      ctx.arc(540, 175, 78, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+      ctx.fill();
+
+      ctx.drawImage(logo, 430, 65, 220, 220);
+
+      ctx.restore();
+      resolve();
+    };
+
+    logo.onerror = () => {
+      ctx.save();
+      ctx.fillStyle = "#39ff14";
+      ctx.shadowColor = "#39ff14";
+      ctx.shadowBlur = 24;
+      ctx.font = "900 82px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("EMX", 540, 190);
+      ctx.restore();
+      resolve();
+    };
+
+    logo.src = "emx-logo.png";
+  });
+}
+
+function drawStat(ctx, label, value, x, y) {
+  ctx.save();
+
+  ctx.shadowColor = "#39ff14";
+  ctx.shadowBlur = 18;
+  ctx.strokeStyle = "rgba(57, 255, 20, 0.88)";
+  ctx.lineWidth = 4;
+  roundRect(ctx, x, y, 390, 118, 22, false, true);
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(57, 255, 20, 0.09)";
+  roundRect(ctx, x, y, 390, 118, 22, true, false);
+
+  ctx.fillStyle = "rgba(255,255,255,0.68)";
+  ctx.font = "900 24px Arial";
+  ctx.textAlign = "left";
+  ctx.fillText(label, x + 28, y + 40);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 38px Arial";
+  ctx.fillText(value, x + 28, y + 86);
+
+  ctx.restore();
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
+  const words = String(text).split(" ");
+  let line = "";
+  let linesUsed = 0;
+
+  for (let i = 0; i < words.length; i++) {
+    const testLine = line + words[i] + " ";
+    const metrics = ctx.measureText(testLine);
+
+    if (metrics.width > maxWidth && i > 0) {
+      linesUsed++;
+
+      if (linesUsed >= maxLines) {
+        ctx.fillText(line.trim().slice(0, 58) + "...", x, y);
+        return;
+      }
+
+      ctx.fillText(line.trim(), x, y);
+      line = words[i] + " ";
+      y += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+
+  ctx.fillText(line.trim(), x, y);
+}
+
+function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+  const r = Math.min(radius, width / 2, height / 2);
+
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+
+  if (fill) {
+    ctx.fill();
+  }
+
+  if (stroke) {
+    ctx.stroke();
+  }
+}
+
+function showReportImagePreview(dataUrl, blob) {
+  const oldPreview = document.getElementById("reportImagePreviewModal");
+
+  if (oldPreview) {
+    oldPreview.remove();
+  }
+
+  const modal = document.createElement("div");
+  modal.id = "reportImagePreviewModal";
+  modal.className = "report-image-preview-modal";
+
+  modal.innerHTML = `
+    <div class="report-image-preview-card">
+      <div class="report-image-preview-header">
+        <div>
+          <span>EMX REPORT IMAGE</span>
+          <strong>Preview Before Saving</strong>
+        </div>
+        <button id="closeReportImagePreviewBtn" type="button">×</button>
+      </div>
+
+      <img src="${dataUrl}" alt="EMX Performance Report Preview" class="report-image-preview-img">
+
+      <div class="report-image-preview-actions">
+        <button id="shareReportImageBtn" type="button">SHARE / SAVE</button>
+        <button id="downloadReportImageBtn" type="button">DOWNLOAD PNG</button>
+        <button id="closeReportImageBottomBtn" type="button">DONE</button>
+      </div>
+
+      <p class="report-image-preview-note">
+        On iPhone, use SHARE / SAVE, then choose Save Image. On PC, DOWNLOAD PNG saves the file.
+      </p>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const closeTop = document.getElementById("closeReportImagePreviewBtn");
+  const closeBottom = document.getElementById("closeReportImageBottomBtn");
+  const shareBtn = document.getElementById("shareReportImageBtn");
+  const downloadBtn = document.getElementById("downloadReportImageBtn");
+
+  function closePreview() {
+    modal.remove();
+  }
+
+  closeTop.addEventListener("click", closePreview);
+  closeBottom.addEventListener("click", closePreview);
+
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      closePreview();
+    }
+  });
+
+  shareBtn.addEventListener("click", async () => {
+    const file = new File([blob], "emx-performance-report.png", {
+      type: "image/png"
+    });
+
+    if (
+      navigator.share &&
+      navigator.canShare &&
+      navigator.canShare({ files: [file] })
+    ) {
+      try {
+        await navigator.share({
+          title: "EMX Performance Report",
+          text: "Save or share your EMX performance report image.",
+          files: [file]
+        });
+
+        showToast("Report image ready.", "good");
+      } catch (error) {
+        showToast("Share cancelled.", "warn");
+      }
+
+      return;
+    }
+
+    fallbackDownloadReportImage(blob);
+  });
+
+  downloadBtn.addEventListener("click", () => {
+    fallbackDownloadReportImage(blob);
+  });
+
+  showToast("Report image preview opened.", "good");
 }
 
 function fallbackDownloadReportImage(blob) {
   const url = URL.createObjectURL(blob);
-  
-  try {
-    const link = document.createElement("a");
-    link.download = "emx-performance-report.png";
-    link.href = url;
-    link.style.display = "none";
-    
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    
-    showToast("Report image downloaded.", "good");
-  } catch (error) {
-    window.open(url, "_blank");
-    showToast("Image opened. Hold/save it from the browser.", "warn");
-  }
-  
+  const link = document.createElement("a");
+
+  link.download = "emx-performance-report.png";
+  link.href = url;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
   setTimeout(() => {
     URL.revokeObjectURL(url);
-  }, 8000);
-}
+  }, 1000);
 
-function drawStat(ctx, label, value, x, y) {
-  ctx.shadowColor = "#39ff14";
-  ctx.shadowBlur = 14;
-  ctx.strokeStyle = "rgba(57,255,20,0.65)";
-  ctx.lineWidth = 3;
-  roundRect(ctx, x, y, 390, 115, 24, false, true);
-  
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "rgba(57,255,20,0.16)";
-  roundRect(ctx, x, y, 390, 115, 24, true, false);
-  
-  ctx.fillStyle = "rgba(255,255,255,0.68)";
-  ctx.font = "900 22px Arial";
-  ctx.textAlign = "left";
-  ctx.fillText(label, x + 28, y + 38);
-  
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "900 38px Arial";
-  ctx.fillText(value, x + 28, y + 84);
-}
-
-function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
-  
-  if (fill) {
-    ctx.fill();
-  }
-  
-  if (stroke) {
-    ctx.stroke();
-  }
+  showToast("Report image downloaded.", "good");
 }
 function hideCopyOverlay() {
   const overlay = document.getElementById("copyOverlay");
