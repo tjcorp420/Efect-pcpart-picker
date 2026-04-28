@@ -1968,6 +1968,7 @@ function showShareButton(text) {
   const terminal = document.querySelector(".emx-export-terminal");
   
   if (!terminal) {
+    showToast("Export terminal not found.", "bad");
     return;
   }
   
@@ -1981,21 +1982,21 @@ function showShareButton(text) {
   actions.className = "emx-terminal-actions";
   
   actions.innerHTML = `
-  <button id="shareReportOverlayBtn" type="button">SHARE REPORT</button>
-  <button id="downloadReportOverlayBtn" type="button">DOWNLOAD TXT</button>
-  <button id="saveImageReportBtn" type="button">SAVE REPORT IMAGE</button>
-  <button id="manualCopyOverlayBtn" type="button">MANUAL COPY</button>
-  <button id="closeExportOverlayBtn" type="button">DONE</button>
-`;
+    <button id="shareReportOverlayBtn" type="button">SHARE REPORT</button>
+    <button id="downloadReportOverlayBtn" type="button">DOWNLOAD TXT</button>
+    <button id="saveImageReportBtn" type="button">SAVE REPORT IMAGE</button>
+    <button id="manualCopyOverlayBtn" type="button">MANUAL COPY</button>
+    <button id="closeExportOverlayBtn" type="button">DONE</button>
+  `;
   
   terminal.appendChild(actions);
   
   const shareBtn = document.getElementById("shareReportOverlayBtn");
-const downloadBtn = document.getElementById("downloadReportOverlayBtn");
-const imageBtn = document.getElementById("saveImageReportBtn");
-const manualBtn = document.getElementById("manualCopyOverlayBtn");
-const closeBtn = document.getElementById("closeExportOverlayBtn");
-
+  const downloadBtn = document.getElementById("downloadReportOverlayBtn");
+  const imageBtn = document.getElementById("saveImageReportBtn");
+  const manualBtn = document.getElementById("manualCopyOverlayBtn");
+  const closeBtn = document.getElementById("closeExportOverlayBtn");
+  
   if (shareBtn) {
     shareBtn.addEventListener("click", async () => {
       if (!navigator.share) {
@@ -2014,15 +2015,16 @@ const closeBtn = document.getElementById("closeExportOverlayBtn");
   
   if (downloadBtn) {
     downloadBtn.addEventListener("click", () => {
-      downloadReportFile(text);
+      downloadTextReport(text);
     });
   }
   
   if (imageBtn) {
-  imageBtn.addEventListener("click", () => {
-    downloadReportImage();
-  });
-}
+    imageBtn.addEventListener("click", () => {
+      showToast("Building report image...", "warn");
+      downloadReportImage();
+    });
+  }
   
   if (manualBtn) {
     manualBtn.addEventListener("click", () => {
@@ -2131,6 +2133,30 @@ function downloadReportImage() {
   link.click();
   
   showToast("Report image downloaded.", "good");
+}
+
+function fallbackDownloadReportImage(blob) {
+  const url = URL.createObjectURL(blob);
+  
+  try {
+    const link = document.createElement("a");
+    link.download = "emx-performance-report.png";
+    link.href = url;
+    link.style.display = "none";
+    
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    
+    showToast("Report image downloaded.", "good");
+  } catch (error) {
+    window.open(url, "_blank");
+    showToast("Image opened. Hold/save it from the browser.", "warn");
+  }
+  
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 8000);
 }
 
 function drawStat(ctx, label, value, x, y) {
