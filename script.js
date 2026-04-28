@@ -1917,17 +1917,60 @@ async function copyPerformanceReport() {
     return;
   }
   
+  showCopyOverlay();
+  
   try {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text);
-      showToast("Full EMX report copied.", "good");
-      return;
+    } else {
+      fallbackCopyText(text);
     }
     
-    fallbackCopyText(text);
+    setTimeout(async () => {
+      hideCopyOverlay();
+      showToast("Full EMX report copied.", "good");
+      
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: "EMX Performance Report",
+            text: text
+          });
+        } catch (shareError) {
+          // user canceled share menu, ignore
+        }
+      }
+    }, 900);
+    
   } catch (error) {
+    hideCopyOverlay();
     fallbackCopyText(text);
+    showToast("Copied using backup method.", "good");
   }
+}
+
+function showCopyOverlay() {
+  if (document.getElementById("copyOverlay")) return;
+  
+  const overlay = document.createElement("div");
+  overlay.id = "copyOverlay";
+  
+  overlay.innerHTML = `
+    <div class="emx-copy-loader">
+      <div class="emx-copy-logo">EMX</div>
+      <div class="emx-copy-text">EXPORTING REPORT</div>
+      <div class="emx-copy-bar">
+        <span></span>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+}
+
+function hideCopyOverlay() {
+  const overlay = document.getElementById("copyOverlay");
+  if (overlay) overlay.remove();
 }
 
 /* =========================================================

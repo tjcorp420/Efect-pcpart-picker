@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- =========================================================
+  <!-- =====================================================
        01. BASIC PAGE SETUP
   ========================================================== -->
   <meta charset="UTF-8" />
@@ -12,6 +12,16 @@
   />
 
   <meta name="theme-color" content="#030407" />
+
+  <link rel="manifest" href="manifest.json" />
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="EMX Builder" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <link rel="apple-touch-icon" href="emx-logo.png" />
+  <link rel="icon" href="emx-logo.png" />
+
   <title>EMX PC Builder</title>
 
   <link rel="stylesheet" href="style.css" />
@@ -99,15 +109,15 @@
           <strong id="statusText">Empty</strong>
         </div>
       </section>
-      
+
       <!-- =======================================================
-     06B. BUILD REPORT BUTTON
-======================================================== -->
-<section class="report-button-panel">
-  <button id="openReportBtn" class="report-open-btn" type="button">
-    Generate EMX Performance Report
-  </button>
-</section>"
+           06B. BUILD REPORT BUTTON
+      ======================================================== -->
+      <section class="report-button-panel">
+        <button id="openReportBtn" class="report-open-btn" type="button">
+          Generate EMX Performance Report
+        </button>
+      </section>
 
       <!-- =======================================================
            07. BUILD GOAL / BUDGET PANEL
@@ -241,123 +251,123 @@
 
     </section>
   </main>
-  
-  <!-- =========================================================
-     14. EMX PERFORMANCE REPORT MODAL
-========================================================== -->
-<div id="reportModal" class="report-modal">
-  <div class="report-backdrop" id="reportBackdrop"></div>
-  
-  <section class="report-card">
-    <button id="closeReportBtn" class="report-close-btn" type="button">×</button>
-    
-    <div class="report-logo-float">
-      <img src="emx-logo.png" alt="EMX Logo" />
-    </div>
-    
-    <div class="report-header">
-      <p class="panel-label">EMX PERFORMANCE REPORT</p>
-      <h2 id="reportTitleText">Build Analysis</h2>
-      <p id="reportSubtitleText">
-        Select parts to generate a full performance breakdown.
-      </p>
-    </div>
-    
-    <div class="report-score-ring">
-      <div>
-        <span id="reportGradeText">--</span>
-        <small>EMX Rating</small>
-      </div>
-    </div>
-    
-    <div class="report-grid">
-      <div class="report-stat">
-        <span>Total Price</span>
-        <strong id="reportPriceText">$0</strong>
-      </div>
-      
-      <div class="report-stat purple">
-        <span>Wattage</span>
-        <strong id="reportWattageText">0W</strong>
-      </div>
-      
-      <div class="report-stat">
-        <span>FPS Score</span>
-        <strong id="reportFpsScoreText">0</strong>
-      </div>
-      
-      <div class="report-stat purple">
-        <span>Status</span>
-        <strong id="reportStatusText">Empty</strong>
-      </div>
-    </div>
-    
-    <div class="report-section">
-      <div class="report-section-title">
-        <span>Estimated Game FPS</span>
-        <em>Sample projection</em>
-      </div>
-      
-      <div id="reportGamesList" class="report-games-list"></div>
-    </div>
-    
-    <div class="report-section">
-      <div class="report-section-title">
-        <span>Performance Notes</span>
-        <em>Build intelligence</em>
-      </div>
-      
-      <div id="reportNotesList" class="report-notes-list"></div>
-    </div>
-    
-    <div class="report-section">
-      <div class="report-section-title">
-        <span>Suggested Peripherals</span>
-        <em>Matched to this build</em>
-      </div>
-      
-      <div id="reportPeripheralsList" class="report-peripherals-list"></div>
-    </div>
-    
-    <div class="report-section">
-      <div class="report-section-title">
-        <span>Upgrade Priority</span>
-        <em>Next best moves</em>
-      </div>
-      
-      <div id="reportUpgradeList" class="report-upgrade-list"></div>
-    </div>
-    
-    <button id="copyReportBtn" class="report-copy-btn" type="button">
-      Copy Full Report
-    </button>
-  </section>
-</div>
 
-<!-- =========================================================
-     15. MANUAL COPY FALLBACK MODAL
-========================================================== -->
-<div id="manualCopyModal" class="manual-copy-modal">
-  <div class="manual-copy-card">
-    <h3>Manual Copy Mode</h3>
-    <p>
-      Your browser blocked automatic clipboard access. Tap the box, select all,
-      then copy manually.
-    </p>
-    
-    <textarea id="manualCopyText" readonly></textarea>
-    
-    <div class="manual-copy-actions">
-      <button id="manualSelectBtn" class="manual-copy-select" type="button">
-        Select All
+  <!-- =========================================================
+       14. EMX PERFORMANCE REPORT MODAL
+  ========================================================== -->
+  <div id="reportModal" class="report-modal">
+    <div class="report-backdrop" id="reportBackdrop"></div>
+
+    <section class="report-card">
+      <button id="closeReportBtn" class="report-close-btn" type="button">×</button>
+
+      <div class="report-logo-float">
+        <img src="emx-logo.png" alt="EMX Logo" />
+      </div>
+
+      <div class="report-header">
+        <p class="panel-label">EMX PERFORMANCE REPORT</p>
+        <h2 id="reportTitleText">Build Analysis</h2>
+        <p id="reportSubtitleText">
+          Select parts to generate a full performance breakdown.
+        </p>
+      </div>
+
+      <div class="report-score-ring">
+        <div>
+          <span id="reportGradeText">--</span>
+          <small>EMX Rating</small>
+        </div>
+      </div>
+
+      <div class="report-grid">
+        <div class="report-stat">
+          <span>Total Price</span>
+          <strong id="reportPriceText">$0</strong>
+        </div>
+
+        <div class="report-stat purple">
+          <span>Wattage</span>
+          <strong id="reportWattageText">0W</strong>
+        </div>
+
+        <div class="report-stat">
+          <span>FPS Score</span>
+          <strong id="reportFpsScoreText">0</strong>
+        </div>
+
+        <div class="report-stat purple">
+          <span>Status</span>
+          <strong id="reportStatusText">Empty</strong>
+        </div>
+      </div>
+
+      <div class="report-section">
+        <div class="report-section-title">
+          <span>Estimated Game FPS</span>
+          <em>Sample projection</em>
+        </div>
+
+        <div id="reportGamesList" class="report-games-list"></div>
+      </div>
+
+      <div class="report-section">
+        <div class="report-section-title">
+          <span>Performance Notes</span>
+          <em>Build intelligence</em>
+        </div>
+
+        <div id="reportNotesList" class="report-notes-list"></div>
+      </div>
+
+      <div class="report-section">
+        <div class="report-section-title">
+          <span>Suggested Peripherals</span>
+          <em>Matched to this build</em>
+        </div>
+
+        <div id="reportPeripheralsList" class="report-peripherals-list"></div>
+      </div>
+
+      <div class="report-section">
+        <div class="report-section-title">
+          <span>Upgrade Priority</span>
+          <em>Next best moves</em>
+        </div>
+
+        <div id="reportUpgradeList" class="report-upgrade-list"></div>
+      </div>
+
+      <button id="copyReportBtn" class="report-copy-btn" type="button">
+        Copy Full Report
       </button>
-      
-      <button id="manualCloseBtn" class="manual-copy-close" type="button">
-        Close
-      </button>
+    </section>
+  </div>
+
+  <!-- =========================================================
+       15. MANUAL COPY FALLBACK MODAL
+  ========================================================== -->
+  <div id="manualCopyModal" class="manual-copy-modal">
+    <div class="manual-copy-card">
+      <h3>Manual Copy Mode</h3>
+      <p>
+        Your browser blocked automatic clipboard access. Tap the box, select all,
+        then copy manually.
+      </p>
+
+      <textarea id="manualCopyText" readonly></textarea>
+
+      <div class="manual-copy-actions">
+        <button id="manualSelectBtn" class="manual-copy-select" type="button">
+          Select All
+        </button>
+
+        <button id="manualCloseBtn" class="manual-copy-close" type="button">
+          Close
+        </button>
+      </div>
     </div>
   </div>
-</div>
 
   <script src="script.js"></script>
 </body>
