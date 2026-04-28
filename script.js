@@ -1917,7 +1917,10 @@ function showCopyOverlay() {
     <div class="emx-orbit-wrap">
       <div class="emx-orbit-ring"></div>
       <div class="emx-orbit-ring second"></div>
-      <div class="emx-floating-logo">EMX</div>
+
+      <div class="emx-floating-logo">
+        <img src="./emx-logo.png" alt="EMX">
+      </div>
     </div>
 
     <div class="emx-terminal-label">PERFORMANCE REPORT EXPORT</div>
