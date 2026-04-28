@@ -1585,3 +1585,63 @@ select {
   transform: scale(1.03);
   box-shadow: 0 0 20px rgba(57, 255, 20, 0.6);
 }
+.emx-orbit-wrap {
+  position: relative;
+  width: 116px;
+  height: 116px;
+  margin: 0 auto 16px;
+  display: grid;
+  place-items: center;
+}
+
+.emx-floating-logo {
+  position: relative;
+  z-index: 3;
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,255,255,.25), transparent 25%),
+    linear-gradient(135deg, rgba(57,255,20,.28), rgba(176,38,255,.28)),
+    rgba(0,0,0,.72);
+  color: #39ff14;
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: 2px;
+  text-shadow:
+    0 0 12px rgba(57,255,20,.95),
+    0 0 24px rgba(176,38,255,.8);
+  box-shadow:
+    0 0 24px rgba(57,255,20,.32),
+    0 0 34px rgba(176,38,255,.22),
+    inset 0 0 18px rgba(255,255,255,.08);
+  animation: emxLogoFloat 2.2s ease-in-out infinite alternate;
+}
+
+.emx-orbit-ring {
+  position: absolute;
+  inset: 5px;
+  border-radius: 999px;
+  border: 1px solid rgba(57,255,20,.32);
+  box-shadow: 0 0 24px rgba(57,255,20,.22);
+  animation: emxOrbitSpin 5s linear infinite;
+}
+
+.emx-orbit-ring.second {
+  inset: 16px;
+  border-color: rgba(176,38,255,.35);
+  animation-duration: 3.4s;
+  animation-direction: reverse;
+}
+
+@keyframes emxLogoFloat {
+  from { transform: translateY(0) scale(1); }
+  to { transform: translateY(-8px) scale(1.04); }
+}
+
+@keyframes emxOrbitSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

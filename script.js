@@ -1913,34 +1913,32 @@ function showCopyOverlay() {
   overlay.id = "copyOverlay";
   
   overlay.innerHTML = `
-    <div class="emx-export-terminal">
-      <div class="emx-terminal-top">
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-
-      <div class="emx-terminal-logo">EMX</div>
-
-      <div class="emx-terminal-label">PERFORMANCE REPORT EXPORT</div>
-
-      <div id="copyOverlayStatus" class="emx-terminal-status">
-        INITIALIZING EXPORT...
-      </div>
-
-      <div class="emx-terminal-progress">
-        <div id="copyOverlayProgress" class="emx-terminal-progress-fill"></div>
-      </div>
-
-      <div id="copyOverlayPercent" class="emx-terminal-percent">0%</div>
-
-      <div class="emx-terminal-lines">
-        <p>> Validating report data</p>
-        <p>> Preparing clipboard payload</p>
-        <p>> Encrypting EMX output shell</p>
-      </div>
+  <div class="emx-export-terminal">
+    <div class="emx-orbit-wrap">
+      <div class="emx-orbit-ring"></div>
+      <div class="emx-orbit-ring second"></div>
+      <div class="emx-floating-logo">EMX</div>
     </div>
-  `;
+
+    <div class="emx-terminal-label">PERFORMANCE REPORT EXPORT</div>
+
+    <div id="copyOverlayStatus" class="emx-terminal-status">
+      INITIALIZING EXPORT...
+    </div>
+
+    <div class="emx-terminal-progress">
+      <div id="copyOverlayProgress" class="emx-terminal-progress-fill"></div>
+    </div>
+
+    <div id="copyOverlayPercent" class="emx-terminal-percent">0%</div>
+
+    <div class="emx-terminal-lines">
+      <p>> Validating report data</p>
+      <p>> Preparing share package</p>
+      <p>> Encrypting EMX output shell</p>
+    </div>
+  </div>
+`;
   
   document.body.appendChild(overlay);
 }
