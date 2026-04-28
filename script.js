@@ -1361,56 +1361,90 @@ async function copyBuildToClipboard() {
 
 function getBuildText() {
   const lines = [];
-
+  
   lines.push("EMX PC Builder Parts List");
   lines.push("NOTE: V1 uses local sample data, not live pricing/specs.");
   lines.push("-------------------------");
-
+  
   Object.keys(build).forEach((category) => {
     const part = getSelectedPart(category);
     lines.push(categoryLabels[category] + ": " + (part ? part.name + " - " + formatMoney(part.price) : "Not selected"));
   });
-
+  
   lines.push("-------------------------");
   lines.push("Total: " + formatMoney(calculateTotalPrice()));
   lines.push("Estimated Wattage: " + calculateWattage() + "W");
   lines.push("Sample FPS Score: " + calculateFpsScore());
   lines.push("Status: " + getBuildStatus());
-
+  
   return lines.join("\n");
 }
 
 function fallbackCopyText(text) {
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.setAttribute("readonly", "");
-  textarea.style.position = "fixed";
-  textarea.style.top = "0";
-  textarea.style.left = "-9999px";
-  textarea.style.opacity = "0";
+  openManualCopyModal(text);
+}
+
+async function copyPerformanceReport() {
+  const text = getReportText();
   
-  document.body.appendChild(textarea);
-  
-  textarea.focus();
-  textarea.select();
-  textarea.setSelectionRange(0, textarea.value.length);
-  
-  let copied = false;
-  
-  try {
-    copied = document.execCommand("copy");
-  } catch (error) {
-    copied = false;
-  }
-  
-  textarea.remove();
-  
-  if (copied) {
-    showToast("Copied to clipboard.", "good");
+  if (!text.trim()) {
+    showToast("No report text available.", "bad");
     return;
   }
   
-  openManualCopyModal(text);
+  showCopyOverlay();
+  updateCopyOverlay("INITIALIZING EXPORT...", 10);
+  
+  try {
+    await wait(1500);
+    updateCopyOverlay("VALIDATING REPORT DATA...", 25);
+    
+    await wait(1700);
+    updateCopyOverlay("BUILDING PERFORMANCE REPORT...", 45);
+    
+    await wait(1700);
+    updateCopyOverlay("PREPARING CLIPBOARD PAYLOAD...", 65);
+    
+    await wait(1500);
+    updateCopyOverlay("COPYING TO CLIPBOARD...", 82);
+    
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      
+      await wait(1400);
+      updateCopyOverlay("REPORT COPIED SUCCESSFULLY", 100, true);
+      
+      await wait(1300);
+      
+      if (navigator.share) {
+        updateCopyOverlay("OPENING SHARE OPTIONS...", 100, true);
+        await wait(1000);
+        
+        try {
+          await navigator.share({
+            title: "EMX Performance Report",
+            text: text
+          });
+        } catch (shareError) {
+          // user canceled share menu
+        }
+      }
+      
+      hideCopyOverlay();
+      return;
+    }
+    
+    updateCopyOverlay("CLIPBOARD BLOCKED — OPENING MANUAL COPY MODE", 100, true);
+    await wait(2200);
+    hideCopyOverlay();
+    openManualCopyModal(text);
+    
+  } catch (error) {
+    updateCopyOverlay("CLIPBOARD BLOCKED — OPENING MANUAL COPY MODE", 100, true);
+    await wait(2200);
+    hideCopyOverlay();
+    openManualCopyModal(text);
+  }
 }
 
 function openManualCopyModal(text) {
@@ -1428,7 +1462,7 @@ function openManualCopyModal(text) {
     manualCopyText.setSelectionRange(0, manualCopyText.value.length);
   }, 80);
   
-  showToast("Clipboard blocked. Manual copy opened.", "warn");
+  showToast("Manual copy mode opened.", "warn");
 }
 
 function closeManualCopyModal() {
@@ -1918,34 +1952,57 @@ async function copyPerformanceReport() {
   }
   
   showCopyOverlay();
+  updateCopyOverlay("INITIALIZING EXPORT...", 10);
   
   try {
+    await wait(1500);
+    updateCopyOverlay("VALIDATING REPORT DATA...", 25);
+    
+    await wait(1700);
+    updateCopyOverlay("BUILDING PERFORMANCE REPORT...", 45);
+    
+    await wait(1700);
+    updateCopyOverlay("PREPARING CLIPBOARD PAYLOAD...", 65);
+    
+    await wait(1500);
+    updateCopyOverlay("COPYING TO CLIPBOARD...", 82);
+    
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text);
-    } else {
-      fallbackCopyText(text);
-    }
-    
-    setTimeout(async () => {
-      hideCopyOverlay();
-      showToast("Full EMX report copied.", "good");
+      
+      await wait(1400);
+      updateCopyOverlay("REPORT COPIED SUCCESSFULLY", 100, true);
+      
+      await wait(1300);
       
       if (navigator.share) {
+        updateCopyOverlay("OPENING SHARE OPTIONS...", 100, true);
+        await wait(1000);
+        
         try {
           await navigator.share({
             title: "EMX Performance Report",
             text: text
           });
         } catch (shareError) {
-          // user canceled share menu, ignore
+          // user canceled share menu
         }
       }
-    }, 900);
+      
+      hideCopyOverlay();
+      return;
+    }
+    
+    updateCopyOverlay("CLIPBOARD BLOCKED — OPENING MANUAL COPY MODE", 100, true);
+    await wait(2200);
+    hideCopyOverlay();
+    openManualCopyModal(text);
     
   } catch (error) {
+    updateCopyOverlay("CLIPBOARD BLOCKED — OPENING MANUAL COPY MODE", 100, true);
+    await wait(2200);
     hideCopyOverlay();
-    fallbackCopyText(text);
-    showToast("Copied using backup method.", "good");
+    openManualCopyModal(text);
   }
 }
 
@@ -1956,11 +2013,31 @@ function showCopyOverlay() {
   overlay.id = "copyOverlay";
   
   overlay.innerHTML = `
-    <div class="emx-copy-loader">
-      <div class="emx-copy-logo">EMX</div>
-      <div class="emx-copy-text">EXPORTING REPORT</div>
-      <div class="emx-copy-bar">
+    <div class="emx-export-terminal">
+      <div class="emx-terminal-top">
         <span></span>
+        <span></span>
+        <span></span>
+      </div>
+
+      <div class="emx-terminal-logo">EMX</div>
+
+      <div class="emx-terminal-label">PERFORMANCE REPORT EXPORT</div>
+
+      <div id="copyOverlayStatus" class="emx-terminal-status">
+        INITIALIZING EXPORT...
+      </div>
+
+      <div class="emx-terminal-progress">
+        <div id="copyOverlayProgress" class="emx-terminal-progress-fill"></div>
+      </div>
+
+      <div id="copyOverlayPercent" class="emx-terminal-percent">0%</div>
+
+      <div class="emx-terminal-lines">
+        <p>> Validating report data</p>
+        <p>> Preparing clipboard payload</p>
+        <p>> Encrypting EMX output shell</p>
       </div>
     </div>
   `;
@@ -1968,9 +2045,38 @@ function showCopyOverlay() {
   document.body.appendChild(overlay);
 }
 
+function updateCopyOverlay(message, percent, success = false) {
+  const status = document.getElementById("copyOverlayStatus");
+  const progress = document.getElementById("copyOverlayProgress");
+  const percentText = document.getElementById("copyOverlayPercent");
+  
+  if (status) {
+    status.textContent = success ? `${message} ✅` : message;
+  }
+  
+  if (progress) {
+    progress.style.width = `${percent}%`;
+  }
+  
+  if (percentText) {
+    percentText.textContent = `${percent}%`;
+  }
+}
+
 function hideCopyOverlay() {
   const overlay = document.getElementById("copyOverlay");
-  if (overlay) overlay.remove();
+  
+  if (overlay) {
+    overlay.classList.add("closing");
+    
+    setTimeout(() => {
+      overlay.remove();
+    }, 250);
+  }
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /* =========================================================
