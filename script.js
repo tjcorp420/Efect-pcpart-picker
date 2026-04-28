@@ -1395,56 +1395,41 @@ async function copyPerformanceReport() {
   showCopyOverlay();
   updateCopyOverlay("INITIALIZING EXPORT...", 10);
   
+  let copied = false;
+  
   try {
-    await wait(1500);
-    updateCopyOverlay("VALIDATING REPORT DATA...", 25);
-    
-    await wait(1700);
-    updateCopyOverlay("BUILDING PERFORMANCE REPORT...", 45);
-    
-    await wait(1700);
-    updateCopyOverlay("PREPARING CLIPBOARD PAYLOAD...", 65);
-    
-    await wait(1500);
-    updateCopyOverlay("COPYING TO CLIPBOARD...", 82);
-    
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text);
-      
-      await wait(1400);
-      updateCopyOverlay("REPORT COPIED SUCCESSFULLY", 100, true);
-      
-      await wait(1300);
-      
-      if (navigator.share) {
-        updateCopyOverlay("OPENING SHARE OPTIONS...", 100, true);
-        await wait(1000);
-        
-        try {
-          await navigator.share({
-            title: "EMX Performance Report",
-            text: text
-          });
-        } catch (shareError) {
-          // user canceled share menu
-        }
-      }
-      
-      hideCopyOverlay();
-      return;
+      copied = true;
     }
-    
-    updateCopyOverlay("CLIPBOARD BLOCKED — OPENING MANUAL COPY MODE", 100, true);
-    await wait(2200);
-    hideCopyOverlay();
-    openManualCopyModal(text);
-    
   } catch (error) {
-    updateCopyOverlay("CLIPBOARD BLOCKED — OPENING MANUAL COPY MODE", 100, true);
-    await wait(2200);
-    hideCopyOverlay();
-    openManualCopyModal(text);
+    copied = false;
   }
+  
+  await wait(1500);
+  updateCopyOverlay("VALIDATING REPORT DATA...", 25);
+  
+  await wait(1700);
+  updateCopyOverlay("BUILDING PERFORMANCE REPORT...", 45);
+  
+  await wait(1700);
+  updateCopyOverlay("PREPARING CLIPBOARD PAYLOAD...", 65);
+  
+  await wait(1500);
+  updateCopyOverlay("FINALIZING EXPORT...", 82);
+  
+  if (copied) {
+    await wait(1200);
+    updateCopyOverlay("REPORT COPIED SUCCESSFULLY", 100, true);
+    
+    showShareButton(text);
+    return;
+  }
+  
+  updateCopyOverlay("CLIPBOARD BLOCKED — OPENING MANUAL COPY MODE", 100, true);
+  await wait(2200);
+  hideCopyOverlay();
+  openManualCopyModal(text);
 }
 
 function openManualCopyModal(text) {
@@ -2060,6 +2045,55 @@ function updateCopyOverlay(message, percent, success = false) {
   
   if (percentText) {
     percentText.textContent = `${percent}%`;
+  }
+}
+
+function showShareButton(text) {
+  const terminal = document.querySelector(".emx-export-terminal");
+  
+  if (!terminal) {
+    return;
+  }
+  
+  const oldActions = document.getElementById("copyOverlayActions");
+  if (oldActions) {
+    oldActions.remove();
+  }
+  
+  const actions = document.createElement("div");
+  actions.id = "copyOverlayActions";
+  actions.className = "emx-terminal-actions";
+  
+  actions.innerHTML = `
+    <button id="shareReportOverlayBtn" type="button">SHARE REPORT</button>
+    <button id="closeExportOverlayBtn" type="button">DONE</button>
+  `;
+  
+  terminal.appendChild(actions);
+  
+  const shareBtn = document.getElementById("shareReportOverlayBtn");
+  const closeBtn = document.getElementById("closeExportOverlayBtn");
+  
+  if (shareBtn) {
+    shareBtn.addEventListener("click", async () => {
+      if (!navigator.share) {
+        showToast("Share is not supported here.", "bad");
+        return;
+      }
+      
+      try {
+        await navigator.share({
+          title: "EMX Performance Report",
+          text: text
+        });
+      } catch (error) {
+        // user canceled share menu
+      }
+    });
+  }
+  
+  if (closeBtn) {
+    closeBtn.addEventListener("click", hideCopyOverlay);
   }
 }
 

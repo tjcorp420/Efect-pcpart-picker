@@ -1731,3 +1731,25 @@ select {
     transform: translateY(340%);
   }
 }
+.emx-terminal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.emx-terminal-actions button {
+  border: 1px solid rgba(57, 255, 20, 0.55);
+  border-radius: 14px;
+  padding: 13px 10px;
+  background: rgba(57, 255, 20, 0.12);
+  color: #39ff14;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+}
+
+.emx-terminal-actions button:first-child {
+  background: #39ff14;
+  color: #020304;
+  box-shadow: 0 0 18px rgba(57, 255, 20, 0.65);
+}
