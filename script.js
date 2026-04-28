@@ -1919,7 +1919,7 @@ function showCopyOverlay() {
       <div class="emx-orbit-ring second"></div>
 
       <div class="emx-floating-logo">
-        <img src="./emx-logo.png" alt="EMX">
+        <img src="emx-logo.png" alt="EMX">
       </div>
     </div>
 
