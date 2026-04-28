@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- =========================================================
+       01. BASIC PAGE SETUP
+  ========================================================== -->
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
+
+  <meta name="theme-color" content="#030407" />
+  <title>EMX PC Builder</title>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <main class="app">
+
+    <!-- =========================================================
+         02. BACKGROUND FX
+    ========================================================== -->
+    <div class="bg-glow bg-glow-one"></div>
+    <div class="bg-glow bg-glow-two"></div>
+    <div class="grid-bg"></div>
+    <div class="scanline"></div>
+
+    <!-- =========================================================
+         03. SPLASH SCREEN
+    ========================================================== -->
+    <section id="splashScreen" class="screen splash-screen active">
+      <div class="splash-card">
+        <div class="logo-orb">
+          <img src="emx-logo.png" alt="EMX Logo" class="emx-logo-img" />
+        </div>
+
+        <p class="boot-label">EMX SYSTEM BOOT</p>
+
+        <h1>
+          PC PART
+          <span>BUILDER</span>
+        </h1>
+
+        <div class="loading-frame">
+          <div id="loadingBar" class="loading-bar"></div>
+        </div>
+
+        <p id="bootText" class="boot-text">Loading part database...</p>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         04. MAIN APP SCREEN
+    ========================================================== -->
+    <section id="builderScreen" class="screen builder-screen">
+
+      <!-- =======================================================
+           05. TOP HEADER
+      ======================================================== -->
+      <header class="top-header">
+        <div class="header-brand">
+          <div class="header-logo-wrap">
+            <img src="emx-logo.png" alt="EMX Logo" class="header-logo-img" />
+          </div>
+
+          <div>
+            <p class="eyebrow">EMX BUILDER</p>
+            <h2>PC PART PICKER</h2>
+          </div>
+        </div>
+
+        <button id="saveBuildBtn" class="small-btn" type="button">SAVE</button>
+      </header>
+
+      <!-- =======================================================
+           06. BUILD SUMMARY STATS
+      ======================================================== -->
+      <section class="summary-grid">
+        <div class="summary-card">
+          <span>Total Price</span>
+          <strong id="totalPriceText">$0</strong>
+        </div>
+
+        <div class="summary-card purple">
+          <span>Est. Wattage</span>
+          <strong id="wattageText">0W</strong>
+        </div>
+
+        <div class="summary-card">
+          <span>FPS Score</span>
+          <strong id="fpsScoreText">0</strong>
+        </div>
+
+        <div class="summary-card purple">
+          <span>Status</span>
+          <strong id="statusText">Empty</strong>
+        </div>
+      </section>
+      
+      <!-- =======================================================
+     06B. BUILD REPORT BUTTON
+======================================================== -->
+<section class="report-button-panel">
+  <button id="openReportBtn" class="report-open-btn" type="button">
+    Generate EMX Performance Report
+  </button>
+</section>"
+
+      <!-- =======================================================
+           07. BUILD GOAL / BUDGET PANEL
+      ======================================================== -->
+      <section class="goal-panel">
+        <div class="section-title-row">
+          <div>
+            <p class="panel-label">BUILD TARGET</p>
+            <h3>Budget + Goal</h3>
+          </div>
+
+          <button id="clearBuildBtn" class="small-btn danger" type="button">CLEAR</button>
+        </div>
+
+        <div class="goal-grid">
+          <label class="input-box">
+            <span>Budget</span>
+            <input id="budgetInput" type="number" inputmode="numeric" value="1500" min="0" />
+          </label>
+
+          <label class="input-box">
+            <span>Goal</span>
+            <select id="goalSelect">
+              <option value="budget">Budget Gaming</option>
+              <option value="fortnite">Fortnite 240 FPS</option>
+              <option value="streaming">Gaming + Streaming</option>
+              <option value="creator">Creator Workstation</option>
+              <option value="elite">Elite High-End</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <!-- =======================================================
+           08. COMPATIBILITY WARNINGS
+      ======================================================== -->
+      <section class="compat-panel">
+        <div class="section-title-row">
+          <div>
+            <p class="panel-label">COMPATIBILITY CHECK</p>
+            <h3>Build Warnings</h3>
+          </div>
+        </div>
+
+        <div id="warningsList" class="warnings-list">
+          <div class="warning good">Select parts to start compatibility checks.</div>
+        </div>
+      </section>
+
+      <!-- =======================================================
+           09. SELECTED BUILD LIST
+      ======================================================== -->
+      <section class="selected-panel">
+        <div class="section-title-row">
+          <div>
+            <p class="panel-label">CURRENT BUILD</p>
+            <h3>Selected Parts</h3>
+          </div>
+
+          <button id="copyBuildBtn" class="small-btn ghost" type="button">COPY</button>
+        </div>
+
+        <div id="selectedPartsList" class="selected-parts-list"></div>
+      </section>
+
+      <!-- =======================================================
+           10. CATEGORY TABS
+      ======================================================== -->
+      <section class="tabs-panel">
+        <div class="tabs-scroll" id="categoryTabs">
+          <button class="tab-btn active" data-category="cpu" type="button">CPU</button>
+          <button class="tab-btn" data-category="gpu" type="button">GPU</button>
+          <button class="tab-btn" data-category="motherboard" type="button">Motherboard</button>
+          <button class="tab-btn" data-category="ram" type="button">RAM</button>
+          <button class="tab-btn" data-category="storage" type="button">Storage</button>
+          <button class="tab-btn" data-category="psu" type="button">PSU</button>
+          <button class="tab-btn" data-category="case" type="button">Case</button>
+          <button class="tab-btn" data-category="cooler" type="button">Cooler</button>
+        </div>
+      </section>
+
+      <!-- =======================================================
+           11. SEARCH / FILTER BAR
+      ======================================================== -->
+      <section class="search-panel">
+        <label class="search-box">
+          <span>Search Parts</span>
+          <input id="searchInput" type="search" placeholder="Search CPU, GPU, RAM..." />
+        </label>
+
+        <label class="filter-box">
+          <span>Sort</span>
+          <select id="sortSelect">
+            <option value="recommended">Recommended</option>
+            <option value="priceLow">Price Low</option>
+            <option value="priceHigh">Price High</option>
+            <option value="performance">Performance</option>
+          </select>
+        </label>
+      </section>
+
+      <!-- =======================================================
+           12. PARTS LIST
+      ======================================================== -->
+      <section class="parts-panel">
+        <div class="section-title-row">
+          <div>
+            <p class="panel-label">PART DATABASE</p>
+            <h3 id="categoryTitleText">CPU Parts</h3>
+          </div>
+        </div>
+
+        <div id="partsList" class="parts-list"></div>
+      </section>
+
+      <!-- =======================================================
+           13. SAVED BUILDS
+      ======================================================== -->
+      <section class="saved-panel">
+        <div class="section-title-row">
+          <div>
+            <p class="panel-label">LOCAL SAVES</p>
+            <h3>Saved Builds</h3>
+          </div>
+
+          <button id="loadBuildBtn" class="small-btn ghost" type="button">LOAD</button>
+        </div>
+
+        <div id="savedBuildsList" class="saved-builds-list"></div>
+      </section>
+
+    </section>
+  </main>
+  
+  <!-- =========================================================
+     14. EMX PERFORMANCE REPORT MODAL
+========================================================== -->
+<div id="reportModal" class="report-modal">
+  <div class="report-backdrop" id="reportBackdrop"></div>
+  
+  <section class="report-card">
+    <button id="closeReportBtn" class="report-close-btn" type="button">×</button>
+    
+    <div class="report-logo-float">
+      <img src="emx-logo.png" alt="EMX Logo" />
+    </div>
+    
+    <div class="report-header">
+      <p class="panel-label">EMX PERFORMANCE REPORT</p>
+      <h2 id="reportTitleText">Build Analysis</h2>
+      <p id="reportSubtitleText">
+        Select parts to generate a full performance breakdown.
+      </p>
+    </div>
+    
+    <div class="report-score-ring">
+      <div>
+        <span id="reportGradeText">--</span>
+        <small>EMX Rating</small>
+      </div>
+    </div>
+    
+    <div class="report-grid">
+      <div class="report-stat">
+        <span>Total Price</span>
+        <strong id="reportPriceText">$0</strong>
+      </div>
+      
+      <div class="report-stat purple">
+        <span>Wattage</span>
+        <strong id="reportWattageText">0W</strong>
+      </div>
+      
+      <div class="report-stat">
+        <span>FPS Score</span>
+        <strong id="reportFpsScoreText">0</strong>
+      </div>
+      
+      <div class="report-stat purple">
+        <span>Status</span>
+        <strong id="reportStatusText">Empty</strong>
+      </div>
+    </div>
+    
+    <div class="report-section">
+      <div class="report-section-title">
+        <span>Estimated Game FPS</span>
+        <em>Sample projection</em>
+      </div>
+      
+      <div id="reportGamesList" class="report-games-list"></div>
+    </div>
+    
+    <div class="report-section">
+      <div class="report-section-title">
+        <span>Performance Notes</span>
+        <em>Build intelligence</em>
+      </div>
+      
+      <div id="reportNotesList" class="report-notes-list"></div>
+    </div>
+    
+    <div class="report-section">
+      <div class="report-section-title">
+        <span>Suggested Peripherals</span>
+        <em>Matched to this build</em>
+      </div>
+      
+      <div id="reportPeripheralsList" class="report-peripherals-list"></div>
+    </div>
+    
+    <div class="report-section">
+      <div class="report-section-title">
+        <span>Upgrade Priority</span>
+        <em>Next best moves</em>
+      </div>
+      
+      <div id="reportUpgradeList" class="report-upgrade-list"></div>
+    </div>
+    
+    <button id="copyReportBtn" class="report-copy-btn" type="button">
+      Copy Full Report
+    </button>
+  </section>
+</div>
+
+<!-- =========================================================
+     15. MANUAL COPY FALLBACK MODAL
+========================================================== -->
+<div id="manualCopyModal" class="manual-copy-modal">
+  <div class="manual-copy-card">
+    <h3>Manual Copy Mode</h3>
+    <p>
+      Your browser blocked automatic clipboard access. Tap the box, select all,
+      then copy manually.
+    </p>
+    
+    <textarea id="manualCopyText" readonly></textarea>
+    
+    <div class="manual-copy-actions">
+      <button id="manualSelectBtn" class="manual-copy-select" type="button">
+        Select All
+      </button>
+      
+      <button id="manualCloseBtn" class="manual-copy-close" type="button">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+  <script src="script.js"></script>
+</body>
+</html>
