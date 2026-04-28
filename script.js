@@ -1384,54 +1384,6 @@ function fallbackCopyText(text) {
   openManualCopyModal(text);
 }
 
-async function copyPerformanceReport() {
-  const text = getReportText();
-  
-  if (!text.trim()) {
-    showToast("No report text available.", "bad");
-    return;
-  }
-  
-  showCopyOverlay();
-  updateCopyOverlay("INITIALIZING EXPORT...", 10);
-  
-  let copied = false;
-  
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      copied = true;
-    }
-  } catch (error) {
-    copied = false;
-  }
-  
-  await wait(1500);
-  updateCopyOverlay("VALIDATING REPORT DATA...", 25);
-  
-  await wait(1700);
-  updateCopyOverlay("BUILDING PERFORMANCE REPORT...", 45);
-  
-  await wait(1700);
-  updateCopyOverlay("PREPARING CLIPBOARD PAYLOAD...", 65);
-  
-  await wait(1500);
-  updateCopyOverlay("FINALIZING EXPORT...", 82);
-  
-  if (copied) {
-    await wait(1200);
-    updateCopyOverlay("REPORT COPIED SUCCESSFULLY", 100, true);
-    
-    showShareButton(text);
-    return;
-  }
-  
-  updateCopyOverlay("CLIPBOARD BLOCKED — OPENING MANUAL COPY MODE", 100, true);
-  await wait(2200);
-  hideCopyOverlay();
-  openManualCopyModal(text);
-}
-
 function openManualCopyModal(text) {
   if (!manualCopyModal || !manualCopyText) {
     alert(text);
@@ -1939,56 +1891,19 @@ async function copyPerformanceReport() {
   showCopyOverlay();
   updateCopyOverlay("INITIALIZING EXPORT...", 10);
   
-  try {
-    await wait(1500);
-    updateCopyOverlay("VALIDATING REPORT DATA...", 25);
-    
-    await wait(1700);
-    updateCopyOverlay("BUILDING PERFORMANCE REPORT...", 45);
-    
-    await wait(1700);
-    updateCopyOverlay("PREPARING CLIPBOARD PAYLOAD...", 65);
-    
-    await wait(1500);
-    updateCopyOverlay("COPYING TO CLIPBOARD...", 82);
-    
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      
-      await wait(1400);
-      updateCopyOverlay("REPORT COPIED SUCCESSFULLY", 100, true);
-      
-      await wait(1300);
-      
-      if (navigator.share) {
-        updateCopyOverlay("OPENING SHARE OPTIONS...", 100, true);
-        await wait(1000);
-        
-        try {
-          await navigator.share({
-            title: "EMX Performance Report",
-            text: text
-          });
-        } catch (shareError) {
-          // user canceled share menu
-        }
-      }
-      
-      hideCopyOverlay();
-      return;
-    }
-    
-    updateCopyOverlay("CLIPBOARD BLOCKED — OPENING MANUAL COPY MODE", 100, true);
-    await wait(2200);
-    hideCopyOverlay();
-    openManualCopyModal(text);
-    
-  } catch (error) {
-    updateCopyOverlay("CLIPBOARD BLOCKED — OPENING MANUAL COPY MODE", 100, true);
-    await wait(2200);
-    hideCopyOverlay();
-    openManualCopyModal(text);
-  }
+  await wait(1200);
+  updateCopyOverlay("VALIDATING REPORT DATA...", 25);
+  
+  await wait(1300);
+  updateCopyOverlay("BUILDING PERFORMANCE REPORT...", 45);
+  
+  await wait(1300);
+  updateCopyOverlay("PREPARING SHARE PACKAGE...", 70);
+  
+  await wait(1200);
+  updateCopyOverlay("REPORT READY", 100, true);
+  
+  showShareButton(text);
 }
 
 function showCopyOverlay() {
@@ -2066,12 +1981,14 @@ function showShareButton(text) {
   
   actions.innerHTML = `
     <button id="shareReportOverlayBtn" type="button">SHARE REPORT</button>
+    <button id="manualCopyOverlayBtn" type="button">MANUAL COPY</button>
     <button id="closeExportOverlayBtn" type="button">DONE</button>
   `;
   
   terminal.appendChild(actions);
   
   const shareBtn = document.getElementById("shareReportOverlayBtn");
+  const manualBtn = document.getElementById("manualCopyOverlayBtn");
   const closeBtn = document.getElementById("closeExportOverlayBtn");
   
   if (shareBtn) {
@@ -2086,9 +2003,14 @@ function showShareButton(text) {
           title: "EMX Performance Report",
           text: text
         });
-      } catch (error) {
-        // user canceled share menu
-      }
+      } catch (error) {}
+    });
+  }
+  
+  if (manualBtn) {
+    manualBtn.addEventListener("click", () => {
+      hideCopyOverlay();
+      openManualCopyModal(text);
     });
   }
   
@@ -2096,6 +2018,7 @@ function showShareButton(text) {
     closeBtn.addEventListener("click", hideCopyOverlay);
   }
 }
+
 
 function hideCopyOverlay() {
   const overlay = document.getElementById("copyOverlay");
