@@ -1982,6 +1982,7 @@ function showShareButton(text) {
   
   actions.innerHTML = `
     <button id="shareReportOverlayBtn" type="button">SHARE REPORT</button>
+    <button id="downloadReportOverlayBtn" type="button">DOWNLOAD REPORT</button>
     <button id="manualCopyOverlayBtn" type="button">MANUAL COPY</button>
     <button id="closeExportOverlayBtn" type="button">DONE</button>
   `;
@@ -1989,6 +1990,7 @@ function showShareButton(text) {
   terminal.appendChild(actions);
   
   const shareBtn = document.getElementById("shareReportOverlayBtn");
+  const downloadBtn = document.getElementById("downloadReportOverlayBtn");
   const manualBtn = document.getElementById("manualCopyOverlayBtn");
   const closeBtn = document.getElementById("closeExportOverlayBtn");
   
@@ -2008,6 +2010,12 @@ function showShareButton(text) {
     });
   }
   
+  if (downloadBtn) {
+    downloadBtn.addEventListener("click", () => {
+      downloadReportFile(text);
+    });
+  }
+  
   if (manualBtn) {
     manualBtn.addEventListener("click", () => {
       hideCopyOverlay();
@@ -2018,6 +2026,23 @@ function showShareButton(text) {
   if (closeBtn) {
     closeBtn.addEventListener("click", hideCopyOverlay);
   }
+}
+
+function downloadReportFile(text) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "EMX-Performance-Report.txt";
+  
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  
+  URL.revokeObjectURL(url);
+  
+  showToast("Report download started.", "good");
 }
 
 
