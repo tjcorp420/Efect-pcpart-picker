@@ -2791,7 +2791,6 @@ function showShareButton(text) {
   actions.className = "emx-terminal-actions";
 
   actions.innerHTML = `
-    <button id="shareReportOverlayBtn" type="button">SHARE REPORT</button>
     <button id="downloadReportOverlayBtn" type="button">DOWNLOAD TXT</button>
     <button id="saveReportImageOverlayBtn" type="button">SAVE REPORT IMAGE</button>
     <button id="manualCopyOverlayBtn" type="button">MANUAL COPY</button>
@@ -2800,26 +2799,10 @@ function showShareButton(text) {
 
   terminal.appendChild(actions);
 
-  const shareBtn = document.getElementById("shareReportOverlayBtn");
   const downloadBtn = document.getElementById("downloadReportOverlayBtn");
   const imageBtn = document.getElementById("saveReportImageOverlayBtn");
   const manualBtn = document.getElementById("manualCopyOverlayBtn");
   const closeBtn = document.getElementById("closeExportOverlayBtn");
-
-  if (shareBtn) {
-    shareBtn.addEventListener("click", async () => {
-      const copied = await copyTextSafe(text);
-
-      if (copied) {
-        showToast("Report copied. Paste it anywhere to share.", "good");
-        return;
-      }
-
-      hideCopyOverlay();
-      openManualCopyModal(text);
-      showToast("Manual copy opened.", "warn");
-    });
-  }
 
   if (downloadBtn) {
     downloadBtn.addEventListener("click", () => {
@@ -2942,7 +2925,7 @@ async function buildReportCanvasSafe() {
   }
 
   canvas.width = 1400;
-  canvas.height = 2200;
+  canvas.height = 2550;
 
   const score = calculateFpsScore();
   const tier = getPerformanceTier(score);
@@ -2963,54 +2946,152 @@ async function buildReportCanvasSafe() {
 
   const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
   bg.addColorStop(0, "#020403");
-  bg.addColorStop(0.42, "#061108");
+  bg.addColorStop(0.38, "#061108");
   bg.addColorStop(0.72, "#08070f");
   bg.addColorStop(1, "#170520");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  drawNeonPanel(ctx, 70, 70, 1260, 2060, 46);
+  drawNeonPanel(ctx, 70, 70, 1260, 2380, 46);
 
-  await drawReportLogo(ctx, 700, 185);
+  await drawReportLogo(ctx, 700, 175);
 
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffffff";
   ctx.font = "900 58px Arial";
-  ctx.fillText("EMX PERFORMANCE REPORT", 700, 335);
+  ctx.fillText("EMX PERFORMANCE REPORT", 700, 330);
 
   ctx.fillStyle = "#39ff14";
   ctx.font = "900 126px Arial";
-  ctx.fillText(tier.grade, 700, 490);
+  ctx.fillText(tier.grade, 700, 485);
 
   ctx.fillStyle = "#ffffff";
   ctx.font = "900 50px Arial";
-  ctx.fillText(tier.label.toUpperCase(), 700, 565);
+  ctx.fillText(tier.label.toUpperCase(), 700, 560);
 
-  drawBigStat(ctx, 130, 655, 540, 130, "TOTAL PRICE", formatMoney(total));
-  drawBigStat(ctx, 730, 655, 540, 130, "EST. WATTAGE", wattage + "W");
-  drawBigStat(ctx, 130, 825, 540, 130, "FPS SCORE", score + "/100");
-  drawBigStat(ctx, 730, 825, 540, 130, "STATUS", status);
+  drawBigStat(ctx, 130, 640, 540, 130, "TOTAL PRICE", formatMoney(total));
+  drawBigStat(ctx, 730, 640, 540, 130, "EST. WATTAGE", wattage + "W");
+  drawBigStat(ctx, 130, 810, 540, 130, "FPS SCORE", score + "/100");
+  drawBigStat(ctx, 730, 810, 540, 130, "STATUS", status);
 
-  drawSectionHeader(ctx, "CORE HARDWARE", 130, 1060);
+  drawSectionHeader(ctx, "CORE HARDWARE", 130, 1030);
 
-  drawInfoCard(ctx, 130, 1100, 540, 175, "CPU", cpu ? cpu.name : "Not selected", cpu ? cpu.specs.Cores + " • " + cpu.socket + " • " + cpu.wattage + "W" : "Select a CPU");
-  drawInfoCard(ctx, 730, 1100, 540, 175, "GPU", gpu ? gpu.name : "Not selected", gpu ? gpu.specs.VRAM + " • " + gpu.wattage + "W • " + gpu.length + "mm" : "Select a GPU");
+  drawInfoCard(
+    ctx,
+    130,
+    1070,
+    540,
+    165,
+    "CPU",
+    cpu ? cpu.name : "Not selected",
+    cpu ? cpu.specs.Cores + " • " + cpu.socket + " • " + cpu.wattage + "W" : "Select a CPU"
+  );
 
-  drawInfoCard(ctx, 130, 1310, 540, 175, "MOTHERBOARD", motherboard ? motherboard.name : "Not selected", motherboard ? motherboard.socket + " • " + motherboard.ramType + " • " + motherboard.formFactor : "Select motherboard");
-  drawInfoCard(ctx, 730, 1310, 540, 175, "MEMORY", ram ? ram.name : "Not selected", ram ? ram.specs.Capacity + " • " + ram.specs.Type + " • " + ram.specs.Speed : "Select RAM");
+  drawInfoCard(
+    ctx,
+    730,
+    1070,
+    540,
+    165,
+    "GPU",
+    gpu ? gpu.name : "Not selected",
+    gpu ? gpu.specs.VRAM + " • " + gpu.wattage + "W • " + gpu.length + "mm" : "Select a GPU"
+  );
 
-  drawInfoCard(ctx, 130, 1520, 540, 175, "STORAGE", storage ? storage.name : "Not selected", storage ? storage.specs.Capacity + " • " + storage.specs.Type + " • " + storage.specs.Speed : "Select storage");
-  drawInfoCard(ctx, 730, 1520, 540, 175, "POWER / COOLING", psu ? psu.name : "Not selected", psu ? psu.capacity + "W PSU • " + psuHeadroom + "W headroom" : "Select PSU");
+  drawInfoCard(
+    ctx,
+    130,
+    1270,
+    540,
+    165,
+    "MOTHERBOARD",
+    motherboard ? motherboard.name : "Not selected",
+    motherboard ? motherboard.socket + " • " + motherboard.ramType + " • " + motherboard.formFactor : "Select motherboard"
+  );
 
-  drawSectionHeader(ctx, "ESTIMATED GAME FPS", 130, 1810);
+  drawInfoCard(
+    ctx,
+    730,
+    1270,
+    540,
+    165,
+    "MEMORY",
+    ram ? ram.name : "Not selected",
+    ram ? ram.specs.Capacity + " • " + ram.specs.Type + " • " + ram.specs.Speed : "Select RAM"
+  );
 
-  const games = estimateGameFps().slice(0, 4);
-  games.forEach((game, index) => {
+  drawInfoCard(
+    ctx,
+    130,
+    1470,
+    540,
+    165,
+    "STORAGE",
+    storage ? storage.name : "Not selected",
+    storage ? storage.specs.Capacity + " • " + storage.specs.Type + " • " + storage.specs.Speed : "Select storage"
+  );
+
+  drawInfoCard(
+    ctx,
+    730,
+    1470,
+    540,
+    165,
+    "POWER",
+    psu ? psu.name : "Not selected",
+    psu ? psu.capacity + "W PSU • " + psuHeadroom + "W headroom" : "Select PSU"
+  );
+
+  drawInfoCard(
+    ctx,
+    130,
+    1670,
+    540,
+    165,
+    "CASE",
+    pcCase ? pcCase.name : "Not selected",
+    pcCase ? "Max GPU " + pcCase.maxGpuLength + "mm • " + pcCase.specs.Airflow + " airflow" : "Select case"
+  );
+
+  drawInfoCard(
+    ctx,
+    730,
+    1670,
+    540,
+    165,
+    "COOLING",
+    cooler ? cooler.name : "Not selected",
+    cooler ? "Supports up to " + cooler.maxCpuWattage + "W CPU heat" : "Select cooler"
+  );
+
+  drawSectionHeader(ctx, "ESTIMATED GAME FPS", 130, 1940);
+
+  const games = estimateGameFps();
+  const gameCards = [
+    {
+      name: "Fortnite Perf",
+      fps: games[0] ? games[0].fps + " FPS" : "N/A"
+    },
+    {
+      name: "Fortnite DX12",
+      fps: games[1] ? games[1].fps + " FPS" : "N/A"
+    },
+    {
+      name: "Valorant",
+      fps: games[2] ? games[2].fps + " FPS" : "N/A"
+    },
+    {
+      name: "Warzone",
+      fps: games[3] ? games[3].fps + " FPS" : "N/A"
+    }
+  ];
+
+  gameCards.forEach((game, index) => {
     const x = 130 + index * 300;
-    drawGameCard(ctx, x, 1850, 255, 135, game.game.replace("Fortnite ", ""), game.fps + " FPS");
+    drawGameCard(ctx, x, 1980, 255, 135, game.name, game.fps);
   });
 
-  drawSectionHeader(ctx, "BUILD NOTES", 130, 2060);
+  drawSectionHeader(ctx, "BUILD NOTES", 130, 2200);
 
   const notes = [
     "Resolution Target: " + getResolutionTarget(score),
@@ -3019,12 +3100,12 @@ async function buildReportCanvasSafe() {
     "Cooling: " + getCoolingText(cpu, cooler)
   ];
 
-  drawNoteStrip(ctx, 130, 2095, 1140, 115, notes);
+  drawNoteStrip(ctx, 130, 2240, 1140, 145, notes);
 
   ctx.fillStyle = "rgba(255,255,255,0.65)";
   ctx.font = "800 24px Arial";
   ctx.textAlign = "center";
-  ctx.fillText("Generated by EMX PC Builder • Local sample data estimate", 700, 2070);
+  ctx.fillText("Generated by EMX PC Builder • Local sample data estimate", 700, 2430);
 
   return canvas;
 }
@@ -3035,7 +3116,7 @@ async function drawReportLogo(ctx, x, y) {
     ctx.save();
     ctx.shadowColor = "#39ff14";
     ctx.shadowBlur = 30;
-    ctx.drawImage(img, x - 140, y - 95, 280, 190);
+    ctx.drawImage(img, x - 140, y - 90, 280, 180);
     ctx.restore();
   } catch (error) {
     ctx.fillStyle = "#39ff14";
@@ -3122,9 +3203,10 @@ function drawNoteStrip(ctx, x, y, w, h, notes) {
   ctx.textAlign = "left";
 
   let yPos = y + 36;
+
   notes.slice(0, 4).forEach((note) => {
-    ctx.fillText("• " + note, x + 28, yPos);
-    yPos += 26;
+    drawCanvasWrappedText(ctx, "• " + note, x + 28, yPos, w - 56, 26, 1);
+    yPos += 28;
   });
 }
 
