@@ -3304,3 +3304,125 @@ function getCoolingText(cpu, cooler) {
 
   return "Cooler may be weak by " + (cpu.wattage - cooler.maxCpuWattage) + "W";
 }
+
+/* =========================================================
+   18. EMX CLOUD / GUEST SAVE SEPARATION
+   PASTE AT VERY BOTTOM OF script.js
+========================================================= */
+
+let emxCloudBuildCache = [];
+
+const EMX_GUEST_SAVE_KEY = "emx_pc_builder_guest_saves";
+const EMX_LOCAL_SAVE_KEY = "emx_pc_builder_saves";
+
+function emxIsCloudUser() {
+  return Boolean(window.emxCurrentUser && window.emxAuthAPI && !window.emxGuestMode);
+}
+
+function emxGetLocalSaveKey() {
+  if (window.emxGuestMode) {
+    return EMX_GUEST_SAVE_KEY;
+  }
+
+  return EMX_LOCAL_SAVE_KEY;
+}
+
+window.addEventListener("emxAuthChanged", (event) => {
+  const detail = event.detail || {};
+
+  if (detail.user && !detail.guestMode) {
+    emxCloudBuildCache = Array.isArray(detail.builds) ? detail.builds : [];
+  } else {
+    emxCloudBuildCache = [];
+  }
+
+  if (typeof renderSavedBuilds === "function") {
+    renderSavedBuilds();
+  }
+
+  if (detail.user && typeof showToast === "function") {
+    showToast("Cloud builds loaded for " + (detail.user.email || "EMX user") + ".", "good");
+  }
+});
+
+function getSavedBuilds() {
+  if (emxIsCloudUser()) {
+    return emxCloudBuildCache;
+  }
+
+  const saved = localStorage.getItem(emxGetLocalSaveKey());
+
+  if (!saved) {
+    return [];
+  }
+
+  try {
+    const saves = JSON.parse(saved);
+    return Array.isArray(saves) ? saves : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+async function saveBuild() {
+  const selectedCount = getSelectedPartsArray().length;
+
+  if (selectedCount === 0) {
+    showToast("Select at least one part before saving.", "bad");
+    return;
+  }
+
+  const save = {
+    id: Date.now(),
+    name: "EMX Build " + new Date().toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    }),
+    build: { ...build },
+    budget: Number(budgetInput.value || 0),
+    goal: goalSelect.value,
+    total: calculateTotalPrice(),
+    wattage: calculateWattage(),
+    score: calculateFpsScore()
+  };
+
+  if (emxIsCloudUser()) {
+    try {
+      emxCloudBuildCache = await window.emxAuthAPI.saveBuild(save);
+      saveCurrentDraft();
+      renderAll();
+      showToast("Build saved to your EMX account.", "good");
+      return;
+    } catch (error) {
+      console.error(error);
+      showToast("Cloud save failed. Saving as local browser save.", "warn");
+    }
+  }
+
+  const saves = getSavedBuilds();
+  saves.push(save);
+
+  localStorage.setItem(emxGetLocalSaveKey(), JSON.stringify(saves));
+
+  saveCurrentDraft();
+  renderAll();
+
+  if (window.emxGuestMode) {
+    showToast("Guest build saved locally.", "warn");
+  } else {
+    showToast("Build saved locally.", "good");
+  }
+}
+
+function loadLatestBuild() {
+  const saves = getSavedBuilds();
+
+  if (saves.length === 0) {
+    showToast("No saved builds yet.", "bad");
+    return;
+  }
+
+  loadBuildById(saves[saves.length - 1].id);
+}

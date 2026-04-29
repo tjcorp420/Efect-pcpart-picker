@@ -2197,3 +2197,46 @@ body.emx-auth-locked #builderScreen {
     transform: translateY(-8px) scale(1.045);
   }
 }
+/* =========================================================
+   FIX NATIVE DROPDOWN OPTION COLORS
+========================================================= */
+select,
+select option,
+select optgroup {
+  color: #ffffff !important;
+  background: #0b1014 !important;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background:
+    linear-gradient(180deg, rgba(12,18,22,0.96), rgba(8,12,16,0.96)) !important;
+  color: #ffffff !important;
+}
+
+select:focus {
+  outline: none;
+  border-color: rgba(57,255,20,0.8) !important;
+  box-shadow:
+    0 0 0 1px rgba(57,255,20,0.45),
+    0 0 18px rgba(57,255,20,0.16),
+    0 0 22px rgba(168,85,247,0.10) !important;
+}
+
+select option {
+  background: #0b1014 !important;
+  color: #ffffff !important;
+}
+
+select option:checked,
+select option:selected {
+  background: #1a73e8 !important;
+  color: #ffffff !important;
+}
+
+select option:hover {
+  background: #16324a !important;
+  color: #ffffff !important;
+}
