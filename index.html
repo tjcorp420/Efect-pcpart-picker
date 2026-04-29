@@ -200,24 +200,55 @@
       </section>
 
       <!-- =======================================================
-           11. SEARCH / FILTER BAR
-      ======================================================== -->
-      <section class="search-panel">
-        <label class="search-box">
-          <span>Search Parts</span>
-          <input id="searchInput" type="search" placeholder="Search CPU, GPU, RAM..." />
-        </label>
+     11. SEARCH / FILTER BAR
+======================================================== -->
+<section class="search-panel advanced-search-panel">
+  <label class="search-box wide-filter">
+    <span>Search Parts</span>
+    <input id="searchInput" type="search" placeholder="Search CPU, GPU, brand, socket, DDR5, RTX..." />
+  </label>
 
-        <label class="filter-box">
-          <span>Sort</span>
-          <select id="sortSelect">
-            <option value="recommended">Recommended</option>
-            <option value="priceLow">Price Low</option>
-            <option value="priceHigh">Price High</option>
-            <option value="performance">Performance</option>
-          </select>
-        </label>
-      </section>
+  <label class="filter-box">
+    <span>Brand</span>
+    <select id="brandFilter">
+      <option value="all">All Brands</option>
+    </select>
+  </label>
+
+  <label class="filter-box">
+    <span>Min Price</span>
+    <input id="minPriceInput" type="number" min="0" placeholder="$0" />
+  </label>
+
+  <label class="filter-box">
+    <span>Max Price</span>
+    <input id="maxPriceInput" type="number" min="0" placeholder="$9999" />
+  </label>
+
+  <label class="filter-box">
+    <span>Min Score</span>
+    <input id="minScoreInput" type="number" min="0" max="100" placeholder="0" />
+  </label>
+
+  <label class="filter-box">
+    <span>Max Wattage</span>
+    <input id="maxWattageInput" type="number" min="0" placeholder="Any" />
+  </label>
+
+  <label class="filter-box">
+    <span>Sort</span>
+    <select id="sortSelect">
+      <option value="recommended">Recommended</option>
+      <option value="priceLow">Price: Low to High</option>
+      <option value="priceHigh">Price: High to Low</option>
+      <option value="performance">Performance Score</option>
+    </select>
+  </label>
+
+  <button id="clearFiltersBtn" class="small-btn ghost clear-filters-btn" type="button">
+    RESET FILTERS
+  </button>
+</section>
 
       <!-- =======================================================
            12. PARTS LIST

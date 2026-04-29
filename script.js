@@ -29,6 +29,12 @@ const categoryTabs = document.getElementById("categoryTabs");
 const categoryTitleText = document.getElementById("categoryTitleText");
 const searchInput = document.getElementById("searchInput");
 const sortSelect = document.getElementById("sortSelect");
+const brandFilter = document.getElementById("brandFilter");
+const minPriceInput = document.getElementById("minPriceInput");
+const maxPriceInput = document.getElementById("maxPriceInput");
+const minScoreInput = document.getElementById("minScoreInput");
+const maxWattageInput = document.getElementById("maxWattageInput");
+const clearFiltersBtn = document.getElementById("clearFiltersBtn");
 
 /* =========================================================
    01B. REPORT MODAL ELEMENTS
@@ -966,17 +972,43 @@ function getCompatibilitySuggestions() {
    10. FILTERING / SORTING
 ========================================================= */
 function getVisibleParts() {
-  const query = searchInput.value.trim().toLowerCase();
-  const sort = sortSelect.value;
+  const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+  const sort = sortSelect ? sortSelect.value : "recommended";
+  const brand = brandFilter ? brandFilter.value : "all";
+
+  const minPrice = minPriceInput ? Number(minPriceInput.value || 0) : 0;
+  const maxPrice = maxPriceInput ? Number(maxPriceInput.value || 0) : 0;
+  const minScore = minScoreInput ? Number(minScoreInput.value || 0) : 0;
+  const maxWattage = maxWattageInput ? Number(maxWattageInput.value || 0) : 0;
 
   let parts = [...partsDB[activeCategory]];
 
   if (query) {
     parts = parts.filter((part) => {
-      return part.name.toLowerCase().includes(query) ||
-        part.brand.toLowerCase().includes(query) ||
-        String(part.use || "").toLowerCase().includes(query);
+      return getPartSearchText(part).includes(query);
     });
+  }
+
+  if (brand && brand !== "all") {
+    parts = parts.filter((part) => {
+      return String(part.brand || "").toLowerCase() === brand.toLowerCase();
+    });
+  }
+
+  if (minPrice > 0) {
+    parts = parts.filter((part) => Number(part.price || 0) >= minPrice);
+  }
+
+  if (maxPrice > 0) {
+    parts = parts.filter((part) => Number(part.price || 0) <= maxPrice);
+  }
+
+  if (minScore > 0) {
+    parts = parts.filter((part) => Number(part.score || 0) >= minScore);
+  }
+
+  if (maxWattage > 0) {
+    parts = parts.filter((part) => Number(part.wattage || 0) <= maxWattage);
   }
 
   if (sort === "priceLow") {
@@ -996,6 +1028,66 @@ function getVisibleParts() {
   }
 
   return parts;
+}
+
+function getPartSearchText(part) {
+  const specsText = part.specs
+    ? Object.keys(part.specs).map((key) => key + " " + part.specs[key]).join(" ")
+    : "";
+
+  return [
+    part.name,
+    part.brand,
+    part.use,
+    part.price,
+    part.wattage,
+    part.score,
+    part.socket,
+    part.ramType,
+    part.formFactor,
+    part.capacity,
+    part.length,
+    specsText
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function renderBrandFilter() {
+  if (!brandFilter || !partsDB[activeCategory]) {
+    return;
+  }
+
+  const currentValue = brandFilter.value || "all";
+
+  const brands = [...new Set(
+    partsDB[activeCategory]
+      .map((part) => String(part.brand || "").trim())
+      .filter(Boolean)
+  )].sort();
+
+  brandFilter.innerHTML = `
+    <option value="all">All Brands</option>
+    ${brands.map((brand) => `<option value="${escapeHtml(brand)}">${escapeHtml(brand)}</option>`).join("")}
+  `;
+
+  const stillExists = brands.some((brand) => brand.toLowerCase() === currentValue.toLowerCase());
+
+  brandFilter.value = stillExists ? currentValue : "all";
+}
+
+function clearAdvancedFilters() {
+  if (searchInput) searchInput.value = "";
+  if (brandFilter) brandFilter.value = "all";
+  if (minPriceInput) minPriceInput.value = "";
+  if (maxPriceInput) maxPriceInput.value = "";
+  if (minScoreInput) minScoreInput.value = "";
+  if (maxWattageInput) maxWattageInput.value = "";
+  if (sortSelect) sortSelect.value = "recommended";
+
+  renderParts();
+  showToast("Filters reset.", "good");
 }
 
 function getRecommendedScore(part, goal) {
@@ -1133,6 +1225,8 @@ function renderSelectedParts() {
 }
 
 function renderParts() {
+  renderBrandFilter();
+
   const parts = getVisibleParts();
   categoryTitleText.textContent = categoryLabels[activeCategory] + " Parts";
 
@@ -2573,6 +2667,10 @@ categoryTabs.addEventListener("click", (event) => {
   }
 
   activeCategory = button.dataset.category;
+  
+  if (brandFilter) {
+  brandFilter.value = "all";
+}
 
   document.querySelectorAll(".tab-btn").forEach((tab) => {
     tab.classList.toggle("active", tab.dataset.category === activeCategory);
@@ -2613,6 +2711,29 @@ warningsList.addEventListener("click", (event) => {
 });
 
 searchInput.addEventListener("input", renderParts);
+if (brandFilter) {
+  brandFilter.addEventListener("change", renderParts);
+}
+
+if (minPriceInput) {
+  minPriceInput.addEventListener("input", renderParts);
+}
+
+if (maxPriceInput) {
+  maxPriceInput.addEventListener("input", renderParts);
+}
+
+if (minScoreInput) {
+  minScoreInput.addEventListener("input", renderParts);
+}
+
+if (maxWattageInput) {
+  maxWattageInput.addEventListener("input", renderParts);
+}
+
+if (clearFiltersBtn) {
+  clearFiltersBtn.addEventListener("click", clearAdvancedFilters);
+}
 
 sortSelect.addEventListener("change", () => {
   renderParts();
