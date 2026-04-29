@@ -4013,6 +4013,165 @@ renderPartCard = function (part) {
   `;
 };
 
+if (partsList) {
+  partsList.addEventListener(
+    "click",
+    (event) => {
+      const liveButton = event.target.closest(".select-live-btn");
+
+      if (!liveButton) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      selectLivePart(liveButton.dataset.liveId);
+    },
+    true
+  );
+}
+
+function emxGetTextForLivePart(part) {
+  return [
+    part.name,
+    part.brand,
+    part.use,
+    part.tier,
+    part.generation,
+    part.vram,
+    part.source,
+    part.specs ? Object.values(part.specs).join(" ") : ""
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function emxExtractWattageFromText(text, fallback = 0) {
+  const match = String(text || "").match(/\b(\d{3,4})w\b/i);
+
+  if (match && match[1]) {
+    return Number(match[1]);
+  }
+
+  return fallback;
+}
+
+function emxGetLiveCoolerLimit(part) {
+  const text = emxGetTextForLivePart(part);
+
+  if (text.includes("420mm")) return 280;
+  if (text.includes("360mm")) return 250;
+  if (text.includes("280mm")) return 220;
+  if (text.includes("240mm")) return 190;
+  if (text.includes("aio") || text.includes("liquid")) return 190;
+  if (text.includes("dual tower")) return 190;
+  if (text.includes("tower") || text.includes("air cooler")) return 140;
+
+  return 140;
+}
+
+function emxNormalizeLivePartForBuild(part) {
+  const category = part.category || activeCategory;
+  const text = emxGetTextForLivePart(part);
+
+  const normalizedPart = {
+    ...part,
+    id: String(part.id),
+    category,
+    price: Number(part.price || 0),
+    score: Number(part.score || 60),
+    wattage: Number(part.wattage || 0),
+    length: Number(part.length || 0),
+    specs: part.specs || {}
+  };
+
+  if (category === "cpu") {
+    if (!normalizedPart.socket) {
+      if (text.includes("am5")) normalizedPart.socket = "AM5";
+      else if (text.includes("am4")) normalizedPart.socket = "AM4";
+      else if (text.includes("lga1851")) normalizedPart.socket = "LGA1851";
+      else if (text.includes("lga1700") || text.includes("intel")) normalizedPart.socket = "LGA1700";
+      else normalizedPart.socket = "Unknown";
+    }
+
+    normalizedPart.wattage = Number(normalizedPart.wattage || emxExtractWattageFromText(text, 95));
+  }
+
+  if (category === "gpu") {
+    normalizedPart.length = Number(normalizedPart.length || 300);
+    normalizedPart.wattage = Number(normalizedPart.wattage || emxExtractWattageFromText(text, 200));
+  }
+
+  if (category === "motherboard") {
+    if (!normalizedPart.socket) {
+      if (text.includes("am5") || text.includes("b650") || text.includes("x670")) normalizedPart.socket = "AM5";
+      else if (text.includes("am4") || text.includes("b550") || text.includes("x570")) normalizedPart.socket = "AM4";
+      else if (text.includes("lga1851") || text.includes("z890") || text.includes("b860")) normalizedPart.socket = "LGA1851";
+      else if (text.includes("lga1700") || text.includes("b760") || text.includes("z790")) normalizedPart.socket = "LGA1700";
+      else normalizedPart.socket = "Unknown";
+    }
+
+    if (!normalizedPart.ramType) {
+      if (text.includes("ddr5")) normalizedPart.ramType = "DDR5";
+      else if (text.includes("ddr4")) normalizedPart.ramType = "DDR4";
+      else normalizedPart.ramType = "Unknown";
+    }
+
+    normalizedPart.formFactor = normalizedPart.formFactor || "ATX";
+    normalizedPart.wattage = Number(normalizedPart.wattage || 40);
+  }
+
+  if (category === "ram") {
+    if (!normalizedPart.ramType) {
+      normalizedPart.ramType = text.includes("ddr5") ? "DDR5" : "DDR4";
+    }
+
+    if (!normalizedPart.capacity) {
+      if (text.includes("64gb")) normalizedPart.capacity = 64;
+      else if (text.includes("32gb")) normalizedPart.capacity = 32;
+      else if (text.includes("16gb")) normalizedPart.capacity = 16;
+      else normalizedPart.capacity = 32;
+    }
+
+    normalizedPart.wattage = Number(normalizedPart.wattage || 10);
+  }
+
+  if (category === "storage") {
+    if (!normalizedPart.capacity) {
+      if (text.includes("4tb")) normalizedPart.capacity = 4000;
+      else if (text.includes("2tb")) normalizedPart.capacity = 2000;
+      else if (text.includes("1tb")) normalizedPart.capacity = 1000;
+      else normalizedPart.capacity = 1000;
+    }
+
+    normalizedPart.wattage = Number(normalizedPart.wattage || 8);
+  }
+
+  if (category === "psu") {
+    normalizedPart.capacity = Number(normalizedPart.capacity || emxExtractWattageFromText(text, 650));
+    normalizedPart.wattage = 0;
+  }
+
+  if (category === "case") {
+    normalizedPart.formFactor = normalizedPart.formFactor || "ATX";
+    normalizedPart.maxGpuLength = Number(normalizedPart.maxGpuLength || 360);
+    normalizedPart.wattage = 0;
+  }
+
+  if (category === "cooler") {
+    normalizedPart.maxCpuWattage = Number(normalizedPart.maxCpuWattage || emxGetLiveCoolerLimit(part));
+    normalizedPart.sockets = Array.isArray(normalizedPart.sockets)
+      ? normalizedPart.sockets
+      : ["AM4", "AM5", "LGA1700", "LGA1851"];
+
+    normalizedPart.wattage = Number(normalizedPart.wattage || 6);
+  }
+
+  return normalizedPart;
+}
+
 function selectLivePart(partId) {
   const part = emxLiveProducts.find((item) => String(item.id) === String(partId));
 
@@ -4021,13 +4180,23 @@ function selectLivePart(partId) {
     return;
   }
 
-  const category = part.category || activeCategory;
+  const normalizedPart = emxNormalizeLivePartForBuild(part);
+  const category = normalizedPart.category || activeCategory;
 
-  if (!partsDB[category].some((item) => item.id === part.id)) {
-    partsDB[category].push(part);
+  if (!partsDB[category]) {
+    showToast("This live product category is not supported yet.", "bad");
+    return;
   }
 
-  build[category] = part.id;
+  const exists = partsDB[category].some((item) => {
+    return String(item.id) === String(normalizedPart.id);
+  });
+
+  if (!exists) {
+    partsDB[category].push(normalizedPart);
+  }
+
+  build[category] = normalizedPart.id;
   activeCategory = category;
 
   if (brandFilter) {
@@ -4037,33 +4206,5 @@ function selectLivePart(partId) {
   saveCurrentDraft();
   renderAll();
 
-  showToast(part.name + " added to your build.", "good");
-}
-
-if (liveSearchBtn) {
-  liveSearchBtn.addEventListener("click", emxRunLiveSearch);
-  emxSetLiveButtonState();
-}
-
-if (clearFiltersBtn) {
-  clearFiltersBtn.addEventListener("click", () => {
-    if (emxLiveModeActive) {
-      emxExitLiveMode();
-    }
-  });
-}
-
-if (partsList) {
-  partsList.addEventListener("click", (event) => {
-    const liveButton = event.target.closest(".select-live-btn");
-
-    if (!liveButton) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    selectLivePart(liveButton.dataset.liveId);
-  });
+  showToast(normalizedPart.name + " added to your build.", "good");
 }

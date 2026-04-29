@@ -193,29 +193,85 @@ function titleMatchesCategory(title, category) {
   const t = normalizeQuery(title);
 
   if (category === "gpu") {
-    return (
+    const isGpu =
       t.includes("graphics card") ||
       t.includes("video card") ||
       t.includes("geforce") ||
       t.includes("radeon") ||
       t.includes("rtx") ||
       t.includes("gtx") ||
-      /\brx\s?\d{3,4}\b/.test(t)
-    );
-  }
+      /\brx\s?\d{3,4}\b/.test(t);
 
-  if (category === "cpu") {
-    if (t.includes("cooler") || t.includes("fan")) {
+    if (!isGpu) {
       return false;
     }
 
-    return (
+    const outdatedGpu =
+      t.includes("gtx 980") ||
+      t.includes("gtx 970") ||
+      t.includes("gtx 960") ||
+      t.includes("gtx 1070") ||
+      t.includes("gtx 1080") ||
+      t.includes("titan x") ||
+      t.includes("quadro") ||
+      t.includes("tesla") ||
+      t.includes("radeon hd") ||
+      t.includes("rx 580") ||
+      t.includes("rx 570") ||
+      t.includes("rx 560");
+
+    if (outdatedGpu) {
+      return false;
+    }
+
+    const weakGpu =
+      t.includes("gt 1030") ||
+      t.includes("gtx 1050") ||
+      t.includes("gtx 1060") ||
+      t.includes("gtx 1650") ||
+      t.includes("gtx 1660") ||
+      t.includes("rtx 3050");
+
+    if (weakGpu) {
+      return false;
+    }
+
+    return true;
+  }
+
+  if (category === "cpu") {
+    if (t.includes("cooler") || t.includes("fan") || t.includes("heatsink")) {
+      return false;
+    }
+
+    const isCpu =
       t.includes("processor") ||
       t.includes("cpu") ||
       t.includes("ryzen") ||
       t.includes("intel core") ||
-      /\bi[3579][-\s]?\d{4,5}/.test(t)
-    );
+      /\bi[3579][-\s]?\d{4,5}/.test(t);
+
+    if (!isCpu) {
+      return false;
+    }
+
+    const oldCpu =
+      t.includes("i5-2400") ||
+      t.includes("i5-3470") ||
+      t.includes("i7-3770") ||
+      t.includes("i7-4770") ||
+      t.includes("i7-6700") ||
+      t.includes("i7-7700") ||
+      t.includes("ryzen 3 1200") ||
+      t.includes("ryzen 5 1600") ||
+      t.includes("fx-") ||
+      t.includes("xeon");
+
+    if (oldCpu) {
+      return false;
+    }
+
+    return true;
   }
 
   if (category === "motherboard") {
@@ -267,13 +323,25 @@ function titleMatchesCategory(title, category) {
   }
 
   if (category === "cooler") {
-    return (
+    const isCooler =
       t.includes("cooler") ||
       t.includes("aio") ||
       t.includes("liquid cooling") ||
+      t.includes("liquid cooler") ||
       t.includes("air cooler") ||
-      t.includes("cpu fan")
-    );
+      t.includes("cpu fan") ||
+      t.includes("360mm") ||
+      t.includes("280mm") ||
+      t.includes("240mm");
+
+    const badCooler =
+      t.includes("gpu cooler") ||
+      t.includes("laptop cooler") ||
+      t.includes("cooling pad") ||
+      t.includes("replacement fan") ||
+      t.includes("case fan only");
+
+    return isCooler && !badCooler;
   }
 
   return true;
@@ -309,12 +377,11 @@ function isLikelyBadProduct(product, category, query) {
   return false;
 }
 
-function getProductScore(product, category) {
-  const price = getNumber(product.extracted_price || product.price);
+function getShoppingQualityScore(product) {
   const rating = getNumber(product.rating);
   const reviews = getNumber(product.reviews);
 
-  let score = 58;
+  let score = 55;
 
   if (rating >= 4.8) {
     score += 22;
@@ -336,20 +403,251 @@ function getProductScore(product, category) {
     score += 3;
   }
 
-  if (price > 0) {
-    if (category === "gpu" && price >= 400) score += 5;
-    if (category === "cpu" && price >= 180) score += 4;
-    if (category === "ram" && price >= 60) score += 3;
-    if (category === "storage" && price >= 70) score += 3;
+  return Math.max(45, Math.min(100, Math.round(score)));
+}
+
+function getHardwarePerformanceProfile(title, category) {
+  const t = normalizeQuery(title);
+
+  const profile = {
+    score: 60,
+    wattage: 0,
+    tier: "Mainstream",
+    vram: "",
+    generation: "",
+    notes: ""
+  };
+
+  if (category === "gpu") {
+    const gpuRules = [
+      { match: ["rtx 4090"], score: 100, wattage: 450, tier: "Extreme 4K", vram: "24GB", generation: "RTX 40" },
+      { match: ["rtx 4080 super", "rtx 4080"], score: 96, wattage: 320, tier: "Elite 4K", vram: "16GB", generation: "RTX 40" },
+      { match: ["rtx 4070 ti super"], score: 94, wattage: 285, tier: "Elite 1440p", vram: "16GB", generation: "RTX 40" },
+      { match: ["rtx 4070 ti"], score: 92, wattage: 285, tier: "Elite 1440p", vram: "12GB", generation: "RTX 40" },
+      { match: ["rtx 4070 super"], score: 90, wattage: 220, tier: "High 1440p", vram: "12GB", generation: "RTX 40" },
+      { match: ["rtx 4070"], score: 87, wattage: 200, tier: "High 1440p", vram: "12GB", generation: "RTX 40" },
+      { match: ["rtx 4060 ti"], score: 78, wattage: 160, tier: "1080p High", vram: "8GB / 16GB", generation: "RTX 40" },
+      { match: ["rtx 4060"], score: 72, wattage: 115, tier: "1080p", vram: "8GB", generation: "RTX 40" },
+
+      { match: ["rtx 5060 ti"], score: 82, wattage: 180, tier: "1080p High+", vram: "8GB / 16GB", generation: "RTX 50" },
+      { match: ["rtx 5060"], score: 76, wattage: 150, tier: "1080p High", vram: "8GB", generation: "RTX 50" },
+      { match: ["rtx 5070"], score: 91, wattage: 250, tier: "High 1440p", vram: "12GB+", generation: "RTX 50" },
+      { match: ["rtx 5080"], score: 97, wattage: 360, tier: "Elite 4K", vram: "16GB+", generation: "RTX 50" },
+      { match: ["rtx 5090"], score: 100, wattage: 500, tier: "Extreme 4K", vram: "24GB+", generation: "RTX 50" },
+
+      { match: ["rx 7900 xtx"], score: 96, wattage: 355, tier: "Elite 4K", vram: "24GB", generation: "RX 7000" },
+      { match: ["rx 7900 xt"], score: 93, wattage: 315, tier: "Elite 1440p", vram: "20GB", generation: "RX 7000" },
+      { match: ["rx 7800 xt"], score: 88, wattage: 263, tier: "High 1440p", vram: "16GB", generation: "RX 7000" },
+      { match: ["rx 7700 xt"], score: 83, wattage: 245, tier: "1440p", vram: "12GB", generation: "RX 7000" },
+      { match: ["rx 7600 xt"], score: 73, wattage: 165, tier: "1080p", vram: "16GB", generation: "RX 7000" },
+      { match: ["rx 7600"], score: 69, wattage: 165, tier: "1080p Budget", vram: "8GB", generation: "RX 7000" },
+
+      { match: ["rx 6800 xt"], score: 86, wattage: 300, tier: "High 1440p", vram: "16GB", generation: "RX 6000" },
+      { match: ["rx 6700 xt"], score: 78, wattage: 230, tier: "1080p High", vram: "12GB", generation: "RX 6000" },
+      { match: ["rx 6600"], score: 64, wattage: 132, tier: "1080p Budget", vram: "8GB", generation: "RX 6000" }
+    ];
+
+    const found = gpuRules.find((rule) => {
+      return rule.match.some((word) => t.includes(word));
+    });
+
+    if (found) {
+      return {
+        ...profile,
+        score: found.score,
+        wattage: found.wattage,
+        tier: found.tier,
+        vram: found.vram,
+        generation: found.generation,
+        notes: "Estimated GPU gaming tier"
+      };
+    }
+
+    return {
+      ...profile,
+      score: 55,
+      wattage: 150,
+      tier: "Unknown GPU",
+      notes: "Unknown GPU performance estimate"
+    };
   }
 
-  return Math.max(45, Math.min(100, Math.round(score)));
+  if (category === "cpu") {
+    const cpuRules = [
+      { match: ["14900k", "14900kf"], score: 98, wattage: 253, tier: "Elite Intel", generation: "Intel 14th Gen" },
+      { match: ["14700k", "14700kf"], score: 94, wattage: 253, tier: "High Intel", generation: "Intel 14th Gen" },
+      { match: ["14600k", "14600kf"], score: 88, wattage: 181, tier: "Gaming Intel", generation: "Intel 14th Gen" },
+      { match: ["14400f", "14400"], score: 79, wattage: 148, tier: "Modern Intel", generation: "Intel 14th Gen" },
+
+      { match: ["13900k", "13900kf"], score: 96, wattage: 253, tier: "Elite Intel", generation: "Intel 13th Gen" },
+      { match: ["13700k", "13700kf"], score: 92, wattage: 253, tier: "High Intel", generation: "Intel 13th Gen" },
+      { match: ["13600k", "13600kf"], score: 87, wattage: 181, tier: "Gaming Intel", generation: "Intel 13th Gen" },
+      { match: ["13400f", "13400"], score: 76, wattage: 148, tier: "Modern Intel", generation: "Intel 13th Gen" },
+
+      { match: ["12900k", "12900kf"], score: 88, wattage: 241, tier: "High Intel", generation: "Intel 12th Gen" },
+      { match: ["12700k", "12700kf"], score: 84, wattage: 190, tier: "Gaming Intel", generation: "Intel 12th Gen" },
+      { match: ["12600k", "12600kf"], score: 78, wattage: 150, tier: "Modern Intel", generation: "Intel 12th Gen" },
+
+      { match: ["7950x3d"], score: 99, wattage: 120, tier: "Elite X3D", generation: "Ryzen 7000" },
+      { match: ["7800x3d"], score: 98, wattage: 120, tier: "Elite Gaming X3D", generation: "Ryzen 7000" },
+      { match: ["7950x"], score: 94, wattage: 170, tier: "Elite Ryzen", generation: "Ryzen 7000" },
+      { match: ["7900x"], score: 91, wattage: 170, tier: "High Ryzen", generation: "Ryzen 7000" },
+      { match: ["7700x", "7700"], score: 85, wattage: 105, tier: "Gaming Ryzen", generation: "Ryzen 7000" },
+      { match: ["7600x", "7600"], score: 80, wattage: 105, tier: "Modern Ryzen", generation: "Ryzen 7000" },
+
+      { match: ["5800x3d"], score: 89, wattage: 105, tier: "AM4 X3D", generation: "Ryzen 5000" },
+      { match: ["5900x"], score: 86, wattage: 105, tier: "High AM4", generation: "Ryzen 5000" },
+      { match: ["5800x"], score: 81, wattage: 105, tier: "AM4 Gaming", generation: "Ryzen 5000" },
+      { match: ["5600x", "5600"], score: 72, wattage: 65, tier: "Budget AM4", generation: "Ryzen 5000" }
+    ];
+
+    const found = cpuRules.find((rule) => {
+      return rule.match.some((word) => t.includes(word));
+    });
+
+    if (found) {
+      return {
+        ...profile,
+        score: found.score,
+        wattage: found.wattage,
+        tier: found.tier,
+        generation: found.generation,
+        notes: "Estimated CPU gaming tier"
+      };
+    }
+
+    return {
+      ...profile,
+      score: 65,
+      wattage: 95,
+      tier: "Unknown CPU",
+      notes: "Unknown CPU performance estimate"
+    };
+  }
+
+  if (category === "motherboard") {
+    let score = 70;
+    if (t.includes("z790") || t.includes("x670")) score = 90;
+    else if (t.includes("b650") || t.includes("b760")) score = 82;
+    else if (t.includes("b550")) score = 75;
+
+    return {
+      ...profile,
+      score,
+      wattage: 35,
+      tier: score >= 85 ? "High" : "Compatible",
+      notes: "Estimated motherboard tier"
+    };
+  }
+
+  if (category === "ram") {
+    let score = 65;
+    if (t.includes("64gb")) score += 10;
+    if (t.includes("32gb")) score += 8;
+    if (t.includes("ddr5")) score += 14;
+    if (t.includes("6000") || t.includes("6400")) score += 8;
+    if (t.includes("3600")) score += 4;
+
+    return {
+      ...profile,
+      score: Math.min(95, score),
+      wattage: 10,
+      tier: t.includes("ddr5") ? "DDR5" : "Memory",
+      notes: "Estimated memory tier"
+    };
+  }
+
+  if (category === "storage") {
+    let score = 65;
+    if (t.includes("nvme") || t.includes("m.2")) score += 15;
+    if (t.includes("990") || t.includes("980 pro") || t.includes("sn850")) score += 8;
+    if (t.includes("2tb")) score += 8;
+    if (t.includes("4tb")) score += 10;
+
+    return {
+      ...profile,
+      score: Math.min(95, score),
+      wattage: 8,
+      tier: "Storage",
+      notes: "Estimated storage tier"
+    };
+  }
+
+  if (category === "psu") {
+    let wattage = 650;
+    const wattMatch = t.match(/\b(\d{3,4})w\b/);
+    if (wattMatch) wattage = Number(wattMatch[1]);
+
+    let score = 65;
+    if (wattage >= 850) score += 15;
+    else if (wattage >= 750) score += 10;
+    if (t.includes("gold")) score += 8;
+    if (t.includes("platinum")) score += 12;
+    if (t.includes("modular")) score += 5;
+
+    return {
+      ...profile,
+      score: Math.min(95, score),
+      wattage: 0,
+      tier: wattage + "W PSU",
+      notes: "Estimated PSU tier"
+    };
+  }
+
+  if (category === "case") {
+    let score = 65;
+    if (t.includes("airflow")) score += 10;
+    if (t.includes("mesh")) score += 8;
+    if (t.includes("atx")) score += 5;
+
+    return {
+      ...profile,
+      score: Math.min(90, score),
+      wattage: 0,
+      tier: "Case",
+      notes: "Estimated case tier"
+    };
+  }
+
+  if (category === "cooler") {
+    let score = 65;
+    let wattage = 0;
+
+    if (t.includes("360mm")) {
+      score = 92;
+      wattage = 8;
+    } else if (t.includes("280mm")) {
+      score = 88;
+      wattage = 7;
+    } else if (t.includes("240mm")) {
+      score = 82;
+      wattage = 6;
+    } else if (t.includes("aio") || t.includes("liquid")) {
+      score = 80;
+      wattage = 6;
+    } else if (t.includes("tower") || t.includes("air cooler")) {
+      score = 72;
+      wattage = 3;
+    }
+
+    return {
+      ...profile,
+      score,
+      wattage,
+      tier: "Cooling",
+      notes: "Estimated cooling tier"
+    };
+  }
+
+  return profile;
 }
 
 function normalizeProduct(product, index, category) {
   const title = cleanString(product.title || "Live Product");
   const price = getNumber(product.extracted_price || product.price);
   const brand = getBrandFromTitle(title);
+  const hardwareProfile = getHardwarePerformanceProfile(title, category);
+  const shoppingQualityScore = getShoppingQualityScore(product);
 
   const image =
     cleanString(product.thumbnail) ||
@@ -385,22 +683,27 @@ function normalizeProduct(product, index, category) {
     snippet: cleanString(product.snippet || ""),
     condition: cleanString(product.second_hand_condition || "New / check listing"),
 
-    score: getProductScore(product, category),
-    wattage: 0,
+    score: hardwareProfile.score,
+    shoppingScore: shoppingQualityScore,
+    wattage: hardwareProfile.wattage,
     length: 0,
+    vram: hardwareProfile.vram,
+    generation: hardwareProfile.generation,
+    tier: hardwareProfile.tier,
 
     use:
-      "Live Google Shopping result • " +
+      hardwareProfile.tier +
+      " • " +
       source +
       (product.delivery ? " • " + cleanString(product.delivery) : ""),
 
     specs: {
       Store: source,
       Brand: brand,
+      Tier: hardwareProfile.tier,
+      Performance: String(hardwareProfile.score) + " / 100",
       Rating: product.rating ? String(product.rating) + " / 5" : "Not listed",
-      Reviews: product.reviews ? String(product.reviews) : "Not listed",
-      Delivery: cleanString(product.delivery || "Check listing"),
-      Type: "Live product"
+      Reviews: product.reviews ? String(product.reviews) : "Not listed"
     }
   };
 }
