@@ -2426,3 +2426,158 @@ select option:hover {
 .advanced-search-panel input[type="number"]::-webkit-outer-spin-button {
   opacity: 0.35;
 }
+/* =========================================================
+   EMX SAVED BUILD MANAGER
+========================================================= */
+
+.saved-builds-list {
+  display: grid;
+  gap: 12px;
+}
+
+.emx-save-card {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(168, 85, 247, 0.24);
+  background:
+    linear-gradient(135deg, rgba(8, 12, 16, 0.88), rgba(14, 8, 22, 0.76));
+  box-shadow:
+    inset 0 0 0 1px rgba(57, 255, 20, 0.08),
+    0 0 22px rgba(57, 255, 20, 0.08),
+    0 0 30px rgba(168, 85, 247, 0.08);
+  color: #ffffff;
+}
+
+.emx-save-card:hover {
+  border-color: rgba(57, 255, 20, 0.42);
+  box-shadow:
+    inset 0 0 0 1px rgba(57, 255, 20, 0.12),
+    0 0 24px rgba(57, 255, 20, 0.13),
+    0 0 34px rgba(168, 85, 247, 0.12);
+}
+
+.emx-save-main {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.emx-save-topline {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-bottom: 7px;
+}
+
+.emx-save-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  border: 1px solid rgba(57, 255, 20, 0.34);
+}
+
+.emx-save-badge.cloud {
+  color: #041006;
+  background: linear-gradient(90deg, #39ff14, #a8ff6b);
+  box-shadow: 0 0 16px rgba(57, 255, 20, 0.22);
+}
+
+.emx-save-badge.guest {
+  color: #ffffff;
+  background: rgba(168, 85, 247, 0.20);
+  border-color: rgba(168, 85, 247, 0.48);
+}
+
+.emx-save-badge.local {
+  color: #39ff14;
+  background: rgba(57, 255, 20, 0.08);
+}
+
+.emx-save-date {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.emx-save-name {
+  display: block;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emx-save-meta {
+  display: block;
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.emx-save-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 9px;
+}
+
+.emx-save-actions button {
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1px solid rgba(57, 255, 20, 0.30);
+  color: #39ff14;
+  background:
+    linear-gradient(180deg, rgba(8, 20, 10, 0.72), rgba(5, 10, 12, 0.90));
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.13em;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.emx-save-actions button:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 18px rgba(57, 255, 20, 0.16),
+    0 0 26px rgba(168, 85, 247, 0.12);
+}
+
+.emx-save-actions button[data-save-action="load"] {
+  color: #041006;
+  border: 0;
+  background: linear-gradient(90deg, #39ff14, #9cff7f);
+}
+
+.emx-save-actions button[data-save-action="delete"] {
+  color: #ff4d7d;
+  border-color: rgba(255, 77, 125, 0.42);
+  background: rgba(255, 77, 125, 0.08);
+}
+
+@media (min-width: 720px) {
+  .emx-save-card {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .emx-save-actions {
+    grid-template-columns: repeat(3, auto);
+  }
+
+  .emx-save-actions button {
+    min-width: 92px;
+    padding: 0 14px;
+  }
+}

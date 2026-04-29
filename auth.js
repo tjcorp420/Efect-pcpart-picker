@@ -15,6 +15,7 @@ import {
   getFirestore,
   doc,
   setDoc,
+  deleteDoc,
   collection,
   getDocs,
   query,
@@ -402,6 +403,35 @@ window.emxAuthAPI = {
         id: Number(save.id || Date.now()),
         userId: auth.currentUser.uid,
         userEmail: auth.currentUser.email || "",
+        updatedAt: serverTimestamp()
+      },
+      { merge: true }
+    );
+
+    return await loadUserBuilds(auth.currentUser);
+  },
+
+    async deleteBuild(saveId) {
+    if (!auth.currentUser) {
+      throw new Error("No logged-in EMX user.");
+    }
+
+    await deleteDoc(
+      doc(db, "builderUsers", auth.currentUser.uid, "builds", String(saveId))
+    );
+
+    return await loadUserBuilds(auth.currentUser);
+  },
+
+  async renameBuild(saveId, newName) {
+    if (!auth.currentUser) {
+      throw new Error("No logged-in EMX user.");
+    }
+
+    await setDoc(
+      doc(db, "builderUsers", auth.currentUser.uid, "builds", String(saveId)),
+      {
+        name: newName,
         updatedAt: serverTimestamp()
       },
       { merge: true }

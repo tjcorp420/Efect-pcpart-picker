@@ -3547,3 +3547,286 @@ function loadLatestBuild() {
 
   loadBuildById(saves[saves.length - 1].id);
 }
+
+/* =========================================================
+   19. EMX SAVED BUILD MANAGER
+   Paste at VERY BOTTOM of script.js
+========================================================= */
+
+function emxManagerIsCloudUser() {
+  return Boolean(window.emxCurrentUser && window.emxAuthAPI && !window.emxGuestMode);
+}
+
+function emxManagerGetSaveType() {
+  if (emxManagerIsCloudUser()) {
+    return "CLOUD";
+  }
+
+  if (window.emxGuestMode) {
+    return "GUEST";
+  }
+
+  return "LOCAL";
+}
+
+function emxManagerGetLocalKey() {
+  if (window.emxGuestMode) {
+    return "emx_pc_builder_guest_saves";
+  }
+
+  return "emx_pc_builder_saves";
+}
+
+function emxManagerSetLocalSaves(saves) {
+  localStorage.setItem(emxManagerGetLocalKey(), JSON.stringify(saves));
+}
+
+function emxManagerGetDateText(save) {
+  if (!save) {
+    return "Unknown";
+  }
+
+  if (save.createdAtText) {
+    return save.createdAtText;
+  }
+
+  if (save.id) {
+    const date = new Date(Number(save.id));
+
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+  }
+
+  return "Saved build";
+}
+
+function emxManagerSetSavedPanelLabel() {
+  const savedPanel = savedBuildsList ? savedBuildsList.closest(".saved-panel") : null;
+  const label = savedPanel ? savedPanel.querySelector(".panel-label") : null;
+
+  if (!label) {
+    return;
+  }
+
+  const saveType = emxManagerGetSaveType();
+
+  if (saveType === "CLOUD") {
+    label.textContent = "CLOUD SAVES";
+    return;
+  }
+
+  if (saveType === "GUEST") {
+    label.textContent = "GUEST SAVES";
+    return;
+  }
+
+  label.textContent = "LOCAL SAVES";
+}
+
+function emxManagerGetBadgeClass() {
+  const saveType = emxManagerGetSaveType();
+
+  if (saveType === "CLOUD") {
+    return "cloud";
+  }
+
+  if (saveType === "GUEST") {
+    return "guest";
+  }
+
+  return "local";
+}
+
+function renderSavedBuilds() {
+  emxManagerSetSavedPanelLabel();
+
+  const saves = getSavedBuilds();
+  const saveType = emxManagerGetSaveType();
+  const badgeClass = emxManagerGetBadgeClass();
+
+  if (!savedBuildsList) {
+    return;
+  }
+
+  if (saves.length === 0) {
+    savedBuildsList.innerHTML = `
+      <div class="warning good">
+        No ${saveType.toLowerCase()} builds yet. Press SAVE to store your current build.
+      </div>
+    `;
+    return;
+  }
+
+  savedBuildsList.innerHTML = saves
+    .slice()
+    .reverse()
+    .map((save) => {
+      const safeName = escapeHtml(save.name || "EMX Build");
+      const dateText = escapeHtml(emxManagerGetDateText(save));
+      const total = formatMoney(save.total || 0);
+      const wattage = Number(save.wattage || 0);
+      const score = Number(save.score || 0);
+
+      return `
+        <div class="saved-build-card emx-save-card" data-save-id="${escapeHtml(save.id)}">
+          <div class="emx-save-main">
+            <div>
+              <div class="emx-save-topline">
+                <span class="emx-save-badge ${badgeClass}">${saveType}</span>
+                <span class="emx-save-date">${dateText}</span>
+              </div>
+
+              <strong class="emx-save-name">${safeName}</strong>
+
+              <span class="emx-save-meta">
+                ${total} • ${wattage}W • Score ${score}
+              </span>
+            </div>
+          </div>
+
+          <div class="emx-save-actions">
+            <button data-save-action="load" data-save-id="${escapeHtml(save.id)}" type="button">LOAD</button>
+            <button data-save-action="rename" data-save-id="${escapeHtml(save.id)}" type="button">RENAME</button>
+            <button data-save-action="delete" data-save-id="${escapeHtml(save.id)}" type="button">DELETE</button>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+async function emxRenameSavedBuild(saveId) {
+  const saves = getSavedBuilds();
+  const save = saves.find((item) => String(item.id) === String(saveId));
+
+  if (!save) {
+    showToast("Saved build not found.", "bad");
+    return;
+  }
+
+  const newName = prompt("Rename this EMX build:", save.name || "EMX Build");
+
+  if (!newName) {
+    return;
+  }
+
+  const cleanName = newName.trim();
+
+  if (!cleanName) {
+    showToast("Build name cannot be empty.", "bad");
+    return;
+  }
+
+  if (emxManagerIsCloudUser() && window.emxAuthAPI.renameBuild) {
+    try {
+      const updatedBuilds = await window.emxAuthAPI.renameBuild(saveId, cleanName);
+
+      if (typeof emxCloudBuildCache !== "undefined") {
+        emxCloudBuildCache = Array.isArray(updatedBuilds) ? updatedBuilds : [];
+      }
+
+      renderSavedBuilds();
+      showToast("Cloud build renamed.", "good");
+      return;
+    } catch (error) {
+      console.error(error);
+      showToast("Cloud rename failed.", "bad");
+      return;
+    }
+  }
+
+  const updatedSaves = saves.map((item) => {
+    if (String(item.id) !== String(saveId)) {
+      return item;
+    }
+
+    return {
+      ...item,
+      name: cleanName
+    };
+  });
+
+  emxManagerSetLocalSaves(updatedSaves);
+  renderSavedBuilds();
+  showToast("Saved build renamed.", "good");
+}
+
+async function emxDeleteSavedBuild(saveId) {
+  const saves = getSavedBuilds();
+  const save = saves.find((item) => String(item.id) === String(saveId));
+
+  if (!save) {
+    showToast("Saved build not found.", "bad");
+    return;
+  }
+
+  const confirmed = confirm("Delete this saved build?\n\n" + (save.name || "EMX Build"));
+
+  if (!confirmed) {
+    return;
+  }
+
+  if (emxManagerIsCloudUser() && window.emxAuthAPI.deleteBuild) {
+    try {
+      const updatedBuilds = await window.emxAuthAPI.deleteBuild(saveId);
+
+      if (typeof emxCloudBuildCache !== "undefined") {
+        emxCloudBuildCache = Array.isArray(updatedBuilds) ? updatedBuilds : [];
+      }
+
+      renderSavedBuilds();
+      showToast("Cloud build deleted.", "warn");
+      return;
+    } catch (error) {
+      console.error(error);
+      showToast("Cloud delete failed.", "bad");
+      return;
+    }
+  }
+
+  const updatedSaves = saves.filter((item) => String(item.id) !== String(saveId));
+
+  emxManagerSetLocalSaves(updatedSaves);
+  renderSavedBuilds();
+  showToast("Saved build deleted.", "warn");
+}
+
+if (savedBuildsList) {
+  savedBuildsList.addEventListener(
+    "click",
+    (event) => {
+      const actionButton = event.target.closest("[data-save-action]");
+
+      if (!actionButton) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const action = actionButton.dataset.saveAction;
+      const saveId = actionButton.dataset.saveId;
+
+      if (action === "load") {
+        loadBuildById(saveId);
+        return;
+      }
+
+      if (action === "rename") {
+        emxRenameSavedBuild(saveId);
+        return;
+      }
+
+      if (action === "delete") {
+        emxDeleteSavedBuild(saveId);
+      }
+    },
+    true
+  );
+}
