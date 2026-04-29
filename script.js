@@ -1964,103 +1964,30 @@ function updateCopyOverlay(message, percent, success = false) {
   }
 }
 
-function showShareButton(text) {
-  const terminal = document.querySelector(".emx-export-terminal");
+async function downloadReportImage() {
+  try {
+    showToast("Generating report image...", "good");
 
-  if (!terminal) {
-    showToast("Export terminal not found.", "bad");
-    return;
-  }
+    const canvas = await buildReportCanvasSafe();
 
-  const oldActions = document.getElementById("copyOverlayActions");
-  if (oldActions) {
-    oldActions.remove();
-  }
-
-  const actions = document.createElement("div");
-  actions.id = "copyOverlayActions";
-  actions.className = "emx-terminal-actions";
-
-  actions.innerHTML = `
-    <button id="shareReportOverlayBtn" type="button">SHARE REPORT</button>
-    <button id="downloadReportOverlayBtn" type="button">DOWNLOAD TXT</button>
-    <button id="saveReportImageOverlayBtn" type="button">SAVE REPORT IMAGE</button>
-    <button id="manualCopyOverlayBtn" type="button">MANUAL COPY</button>
-    <button id="closeExportOverlayBtn" type="button">DONE</button>
-  `;
-
-  terminal.appendChild(actions);
-
-  const shareBtn = document.getElementById("shareReportOverlayBtn");
-  const downloadBtn = document.getElementById("downloadReportOverlayBtn");
-  const imageBtn = document.getElementById("saveReportImageOverlayBtn");
-  const manualBtn = document.getElementById("manualCopyOverlayBtn");
-  const closeBtn = document.getElementById("closeExportOverlayBtn");
-
-  if (shareBtn) {
-    shareBtn.addEventListener("click", async () => {
-      try {
-        if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(text);
-          showToast("Report copied. Paste it anywhere to share.", "good");
-          return;
-        }
-      } catch (error) {
-        console.warn("Clipboard failed:", error);
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        showToast("Could not create report image.", "bad");
+        return;
       }
 
-      openManualCopyModal(text);
-      showToast("Manual copy opened.", "warn");
-    });
-  }
+      const imageUrl = URL.createObjectURL(blob);
 
-  if (downloadBtn) {
-    downloadBtn.addEventListener("click", () => {
-      downloadReportText(text);
-    });
-  }
-
-  if (imageBtn) {
-    imageBtn.addEventListener("click", () => {
-      downloadReportImage();
-    });
-  }
-
-  if (manualBtn) {
-    manualBtn.addEventListener("click", () => {
       hideCopyOverlay();
-      openManualCopyModal(text);
-    });
-  }
 
-  if (closeBtn) {
-    closeBtn.addEventListener("click", hideCopyOverlay);
-  }
-}
-
-function downloadReportText(text) {
-  try {
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.download = "emx-performance-report.txt";
-    link.href = url;
-    link.style.display = "none";
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-    }, 1500);
-
-    showToast("Report TXT downloaded.", "good");
+      setTimeout(() => {
+        showReportImagePreview(imageUrl, blob);
+        showToast("Report image preview opened.", "good");
+      }, 280);
+    }, "image/png");
   } catch (error) {
     console.error(error);
-    openManualCopyModal(text);
-    showToast("TXT download failed. Manual copy opened.", "warn");
+    showToast("Report image failed.", "bad");
   }
 }
 
@@ -2203,7 +2130,7 @@ function showReportImagePreview(imageUrl, blob) {
   overlay.style.cssText = `
     position: fixed;
     inset: 0;
-    z-index: 30000;
+    z-index: 120000;
     display: grid;
     place-items: center;
     padding: 18px;
