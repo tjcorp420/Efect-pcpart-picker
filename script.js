@@ -2155,6 +2155,180 @@ async function buildReportCanvasSafe() {
   return canvas;
 }
 
+function getSelectedPartMap(selectedParts) {
+  const map = {};
+
+  selectedParts.forEach((item) => {
+    if (!item || !item.category) return;
+    map[String(item.category).toLowerCase()] = item.part || null;
+  });
+
+  return map;
+}
+
+function pickPartValue(part, keys, fallback = "N/A") {
+  if (!part) return fallback;
+
+  const lowerKeys = keys.map((k) => String(k).toLowerCase());
+
+  const tryObject = (obj) => {
+    if (!obj || typeof obj !== "object") return null;
+
+    for (const [key, value] of Object.entries(obj)) {
+      if (lowerKeys.includes(String(key).toLowerCase())) {
+        if (value !== undefined && value !== null && String(value).trim() !== "") {
+          return String(value);
+        }
+      }
+    }
+
+    return null;
+  };
+
+  return (
+    tryObject(part) ||
+    tryObject(part.specs) ||
+    tryObject(part.details) ||
+    fallback
+  );
+}
+
+function extractNumberFromValue(value) {
+  if (!value) return 0;
+  const match = String(value).match(/(\d+)/);
+  return match ? Number(match[1]) : 0;
+}
+
+function getGameFpsEstimates(score) {
+  const scale = Math.max(0.55, score / 75);
+  const calc = (base) => Math.max(30, Math.round(base * scale));
+
+  return [
+    { name: "Fortnite", fps: calc(165) },
+    { name: "Warzone", fps: calc(105) },
+    { name: "Apex", fps: calc(145) },
+    { name: "GTA V", fps: calc(130) }
+  ];
+}
+
+function getResolutionTarget(score) {
+  if (score >= 90) return "1440p High";
+  if (score >= 75) return "1080p Ultra";
+  if (score >= 60) return "1080p High";
+  if (score >= 45) return "1080p Medium";
+  return "1080p Low / Esports Settings";
+}
+
+function loadCanvasImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function drawSectionTitle(ctx, text, x, y) {
+  ctx.fillStyle = "#39ff14";
+  ctx.font = "900 36px Arial";
+  ctx.textAlign = "left";
+  ctx.fillText(text, x, y);
+}
+
+function drawCanvasCard(ctx, x, y, width, height, radius = 28) {
+  ctx.save();
+  ctx.shadowColor = "#39ff14";
+  ctx.shadowBlur = 16;
+  ctx.strokeStyle = "rgba(57,255,20,0.8)";
+  ctx.lineWidth = 3;
+  roundRect(ctx, x, y, width, height, radius, false, true);
+  ctx.restore();
+
+  ctx.fillStyle = "rgba(57,255,20,0.12)";
+  roundRect(ctx, x, y, width, height, radius, true, false);
+}
+
+function drawMetricCard(ctx, x, y, width, height, label, value) {
+  drawCanvasCard(ctx, x, y, width, height, 24);
+
+  ctx.fillStyle = "rgba(255,255,255,0.72)";
+  ctx.font = "900 24px Arial";
+  ctx.textAlign = "left";
+  ctx.fillText(label, x + 24, y + 38);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 54px Arial";
+  ctx.fillText(value, x + 24, y + 88);
+}
+
+function drawDetailCard(ctx, x, y, width, height, label, value, subline = "") {
+  drawCanvasCard(ctx, x, y, width, height, 26);
+
+  ctx.fillStyle = "#39ff14";
+  ctx.font = "900 24px Arial";
+  ctx.textAlign = "left";
+  ctx.fillText(label, x + 22, y + 36);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 30px Arial";
+  drawWrappedText(ctx, value, x + 22, y + 75, width - 44, 34);
+
+  ctx.fillStyle = "rgba(255,255,255,0.72)";
+  ctx.font = "800 22px Arial";
+  drawWrappedText(ctx, subline, x + 22, y + 132, width - 44, 28);
+}
+
+function drawMiniGameCard(ctx, x, y, width, height, label, value) {
+  drawCanvasCard(ctx, x, y, width, height, 22);
+
+  ctx.fillStyle = "rgba(255,255,255,0.75)";
+  ctx.font = "900 24px Arial";
+  ctx.textAlign = "left";
+  ctx.fillText(label, x + 18, y + 34);
+
+  ctx.fillStyle = "#39ff14";
+  ctx.font = "900 42px Arial";
+  ctx.fillText(value, x + 18, y + 88);
+}
+
+function drawInfoStrip(ctx, x, y, width, height, rows) {
+  drawCanvasCard(ctx, x, y, width, height, 24);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "800 24px Arial";
+  ctx.textAlign = "left";
+
+  let rowY = y + 28;
+
+  rows.slice(0, 5).forEach((row) => {
+    ctx.fillText(`• ${row}`, x + 24, rowY);
+    rowY += 20;
+  });
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = String(text || "").split(" ");
+  let line = "";
+  let currentY = y;
+
+  for (let i = 0; i < words.length; i++) {
+    const testLine = line + words[i] + " ";
+    const metrics = ctx.measureText(testLine);
+
+    if (metrics.width > maxWidth && i > 0) {
+      ctx.fillText(line.trim(), x, currentY);
+      line = words[i] + " ";
+      currentY += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+
+  if (line.trim()) {
+    ctx.fillText(line.trim(), x, currentY);
+  }
+}
+
 function drawLogoOnCanvas(ctx, x, y) {
   return new Promise((resolve) => {
     const img = new Image();
