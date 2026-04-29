@@ -2068,16 +2068,45 @@ async function downloadReportImage() {
     showToast("Generating report image...", "good");
 
     const canvas = await buildReportCanvas();
+
+    if (!canvas) {
+      showToast("Report canvas failed.", "bad");
+      return;
+    }
+
     const dataUrl = canvas.toDataURL("image/png");
 
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        showToast("Could not create report image.", "bad");
-        return;
-      }
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob((createdBlob) => {
+        resolve(createdBlob);
+      }, "image/png", 1);
+    });
 
+    if (!blob) {
+      showToast("Could not create report image.", "bad");
+      return;
+    }
+
+    if (typeof showReportImagePreview === "function") {
       showReportImagePreview(dataUrl, blob);
-    }, "image/png");
+      showToast("Report image preview opened.", "good");
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const imageWindow = window.open(url, "_blank");
+
+    if (imageWindow) {
+      showToast("Image opened. Right click or hold to save.", "good");
+
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 30000);
+
+      return;
+    }
+
+    fallbackDownloadReportImage(blob);
   } catch (error) {
     console.error(error);
     showToast("Report image failed.", "bad");
