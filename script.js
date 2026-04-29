@@ -35,6 +35,7 @@ const maxPriceInput = document.getElementById("maxPriceInput");
 const minScoreInput = document.getElementById("minScoreInput");
 const maxWattageInput = document.getElementById("maxWattageInput");
 const clearFiltersBtn = document.getElementById("clearFiltersBtn");
+const liveSearchBtn = document.getElementById("liveSearchBtn");
 
 /* =========================================================
    01B. REPORT MODAL ELEMENTS
@@ -3829,4 +3830,240 @@ if (savedBuildsList) {
     },
     true
   );
+}
+
+/* =========================================================
+   21. EMX LIVE PRODUCT SEARCH
+   Paste at VERY BOTTOM of script.js
+========================================================= */
+
+let emxLiveModeActive = false;
+let emxLiveProducts = [];
+let emxLiveLastQuery = "";
+let emxLiveLoading = false;
+
+function emxGetLiveSearchQuery() {
+  const query = searchInput ? searchInput.value.trim() : "";
+
+  if (query) {
+    return query;
+  }
+
+  return categoryLabels[activeCategory] || activeCategory || "pc part";
+}
+
+function emxGetLiveSearchParams() {
+  const params = new URLSearchParams();
+
+  params.set("category", activeCategory);
+  params.set("q", emxGetLiveSearchQuery());
+
+  if (brandFilter && brandFilter.value && brandFilter.value !== "all") {
+    params.set("brand", brandFilter.value);
+  }
+
+  if (sortSelect && sortSelect.value) {
+    params.set("sort", sortSelect.value);
+  }
+
+  if (minPriceInput && minPriceInput.value) {
+    params.set("minPrice", minPriceInput.value);
+  }
+
+  if (maxPriceInput && maxPriceInput.value) {
+    params.set("maxPrice", maxPriceInput.value);
+  }
+
+  if (minScoreInput && minScoreInput.value) {
+    params.set("minScore", minScoreInput.value);
+  }
+
+  return params;
+}
+
+function emxSetLiveButtonState() {
+  if (!liveSearchBtn) {
+    return;
+  }
+
+  if (emxLiveLoading) {
+    liveSearchBtn.textContent = "SEARCHING...";
+    liveSearchBtn.disabled = true;
+    return;
+  }
+
+  liveSearchBtn.disabled = false;
+  liveSearchBtn.textContent = emxLiveModeActive ? "REFRESH LIVE" : "LIVE SEARCH";
+}
+
+async function emxRunLiveSearch() {
+  if (emxLiveLoading) {
+    return;
+  }
+
+  const query = emxGetLiveSearchQuery();
+
+  if (!query || query.length < 2) {
+    showToast("Type a product search first.", "bad");
+    return;
+  }
+
+  emxLiveLoading = true;
+  emxSetLiveButtonState();
+
+  try {
+    showToast("Searching live products...", "good");
+
+    const params = emxGetLiveSearchParams();
+    const response = await fetch("/api/search-products?" + params.toString());
+
+    const data = await response.json();
+
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || "Live search failed.");
+    }
+
+    emxLiveProducts = Array.isArray(data.products) ? data.products : [];
+    emxLiveModeActive = true;
+    emxLiveLastQuery = data.query || query;
+
+    renderParts();
+
+    if (emxLiveProducts.length === 0) {
+      showToast("No live products found. Try a different search.", "warn");
+      return;
+    }
+
+    showToast("Loaded " + emxLiveProducts.length + " live products.", "good");
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || "Live search failed.", "bad");
+  } finally {
+    emxLiveLoading = false;
+    emxSetLiveButtonState();
+  }
+}
+
+function emxExitLiveMode() {
+  emxLiveModeActive = false;
+  emxLiveProducts = [];
+  emxLiveLastQuery = "";
+  emxSetLiveButtonState();
+  renderParts();
+}
+
+const emxOriginalGetVisiblePartsLive = getVisibleParts;
+
+getVisibleParts = function () {
+  if (emxLiveModeActive) {
+    return [...emxLiveProducts];
+  }
+
+  return emxOriginalGetVisiblePartsLive();
+};
+
+const emxOriginalRenderPartCardLive = renderPartCard;
+
+renderPartCard = function (part) {
+  if (!part || !part.live) {
+    return emxOriginalRenderPartCardLive(part);
+  }
+
+  const isSelected = build[part.category] === part.id;
+
+  const specsHtml = Object.keys(part.specs || {})
+    .map((key) => {
+      return `
+        <div class="spec">
+          <span>${escapeHtml(key)}</span>
+          <strong>${escapeHtml(part.specs[key])}</strong>
+        </div>
+      `;
+    })
+    .join("");
+
+  return `
+    <article class="part-card live-part-card ${isSelected ? "selected" : ""}">
+      <div class="live-product-image-wrap">
+        ${part.image ? `<img src="${escapeHtml(part.image)}" alt="${escapeHtml(part.name)}" loading="lazy">` : `<div class="live-product-placeholder">EMX</div>`}
+      </div>
+
+      <div class="part-top">
+        <div class="part-info">
+          <span>LIVE • ${escapeHtml(part.source || "Store")}</span>
+          <h4>${escapeHtml(part.name)}</h4>
+          <p>${escapeHtml(part.use || "Live product")} • Score ${Number(part.score || 0)}</p>
+        </div>
+
+        <div class="part-price">${formatMoney(part.price)}</div>
+      </div>
+
+      <div class="spec-grid">
+        ${specsHtml}
+      </div>
+
+      <div class="card-actions live-card-actions">
+        <button class="select-live-btn" data-live-id="${escapeHtml(part.id)}" type="button">
+          ${isSelected ? "Selected" : "Select Live Part"}
+        </button>
+
+        ${part.link ? `<a class="view-product-link" href="${escapeHtml(part.link)}" target="_blank" rel="noopener noreferrer">VIEW PRODUCT</a>` : ""}
+      </div>
+    </article>
+  `;
+};
+
+function selectLivePart(partId) {
+  const part = emxLiveProducts.find((item) => String(item.id) === String(partId));
+
+  if (!part) {
+    showToast("Live product could not be selected.", "bad");
+    return;
+  }
+
+  const category = part.category || activeCategory;
+
+  if (!partsDB[category].some((item) => item.id === part.id)) {
+    partsDB[category].push(part);
+  }
+
+  build[category] = part.id;
+  activeCategory = category;
+
+  if (brandFilter) {
+    brandFilter.value = "all";
+  }
+
+  saveCurrentDraft();
+  renderAll();
+
+  showToast(part.name + " added to your build.", "good");
+}
+
+if (liveSearchBtn) {
+  liveSearchBtn.addEventListener("click", emxRunLiveSearch);
+  emxSetLiveButtonState();
+}
+
+if (clearFiltersBtn) {
+  clearFiltersBtn.addEventListener("click", () => {
+    if (emxLiveModeActive) {
+      emxExitLiveMode();
+    }
+  });
+}
+
+if (partsList) {
+  partsList.addEventListener("click", (event) => {
+    const liveButton = event.target.closest(".select-live-btn");
+
+    if (!liveButton) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    selectLivePart(liveButton.dataset.liveId);
+  });
 }
