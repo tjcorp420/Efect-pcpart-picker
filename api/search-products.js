@@ -242,7 +242,7 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const apiKey = process.env.SERPAPI_KEY;
+  const apiKey = process.env.SERPAPI_KEY || process.env.serpapi_key;
 
   if (!apiKey) {
     res.status(500).json({
