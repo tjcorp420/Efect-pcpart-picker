@@ -1966,20 +1966,20 @@ function updateCopyOverlay(message, percent, success = false) {
 
 function showShareButton(text) {
   const terminal = document.querySelector(".emx-export-terminal");
-  
+
   if (!terminal) {
     return;
   }
-  
+
   const oldActions = document.getElementById("copyOverlayActions");
   if (oldActions) {
     oldActions.remove();
   }
-  
+
   const actions = document.createElement("div");
   actions.id = "copyOverlayActions";
   actions.className = "emx-terminal-actions";
-  
+
   actions.innerHTML = `
     <button id="shareReportOverlayBtn" type="button">SHARE REPORT</button>
     <button id="downloadReportOverlayBtn" type="button">DOWNLOAD TXT</button>
@@ -1987,57 +1987,73 @@ function showShareButton(text) {
     <button id="manualCopyOverlayBtn" type="button">MANUAL COPY</button>
     <button id="closeExportOverlayBtn" type="button">DONE</button>
   `;
-  
+
   terminal.appendChild(actions);
-  
+
   const shareBtn = document.getElementById("shareReportOverlayBtn");
   const downloadBtn = document.getElementById("downloadReportOverlayBtn");
-  const saveImageBtn = document.getElementById("saveReportImageOverlayBtn");
+  const imageBtn = document.getElementById("saveReportImageOverlayBtn");
   const manualBtn = document.getElementById("manualCopyOverlayBtn");
   const closeBtn = document.getElementById("closeExportOverlayBtn");
-  
+
   if (shareBtn) {
     shareBtn.addEventListener("click", async () => {
-      if (!navigator.share) {
-        showToast("Share is not supported here.", "bad");
-        return;
+      const canNativeShare = Boolean(navigator.share) && !isDesktopLikeDevice();
+
+      if (canNativeShare) {
+        try {
+          await navigator.share({
+            title: "EMX Performance Report",
+            text: text
+          });
+
+          showToast("Report shared.", "good");
+          return;
+        } catch (error) {
+          console.warn("Native share failed:", error);
+        }
       }
-      
+
       try {
-        await navigator.share({
-          title: "EMX Performance Report",
-          text: text
-        });
-        
-        showToast("Report shared.", "good");
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          showToast("PC share fallback: report copied.", "good");
+          return;
+        }
       } catch (error) {
-        showToast("Share cancelled.", "warn");
+        console.warn("Clipboard fallback failed:", error);
       }
+
+      openManualCopyModal(text);
+      showToast("PC share fallback opened manual copy.", "warn");
     });
   }
-  
+
   if (downloadBtn) {
     downloadBtn.addEventListener("click", () => {
-      downloadReportTxt(text);
+      downloadReportText(text);
     });
   }
-  
-  if (saveImageBtn) {
-    saveImageBtn.addEventListener("click", () => {
-      downloadReportImage();
-    });
+
+  if (imageBtn) {
+    imageBtn.addEventListener("click", downloadReportImage);
   }
-  
+
   if (manualBtn) {
     manualBtn.addEventListener("click", () => {
       hideCopyOverlay();
       openManualCopyModal(text);
     });
   }
-  
+
   if (closeBtn) {
     closeBtn.addEventListener("click", hideCopyOverlay);
   }
+}
+
+function isDesktopLikeDevice() {
+  const ua = navigator.userAgent.toLowerCase();
+  return ua.includes("windows") || ua.includes("macintosh") || ua.includes("linux");
 }
 
 function downloadReportTxt(text) {
@@ -2067,58 +2083,34 @@ async function downloadReportImage() {
   try {
     showToast("Generating report image...", "good");
 
-    const canvas = await buildReportCanvas();
+    const canvas = await buildReportCanvasSafe();
 
-    if (!canvas) {
-      showToast("Report canvas failed.", "bad");
-      return;
-    }
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        showToast("Could not create report image.", "bad");
+        return;
+      }
 
-    const dataUrl = canvas.toDataURL("image/png");
-
-    const blob = await new Promise((resolve) => {
-      canvas.toBlob((createdBlob) => {
-        resolve(createdBlob);
-      }, "image/png", 1);
-    });
-
-    if (!blob) {
-      showToast("Could not create report image.", "bad");
-      return;
-    }
-
-    if (typeof showReportImagePreview === "function") {
-      showReportImagePreview(dataUrl, blob);
+      const imageUrl = URL.createObjectURL(blob);
+      showReportImagePreview(imageUrl, blob);
       showToast("Report image preview opened.", "good");
-      return;
-    }
-
-    const url = URL.createObjectURL(blob);
-    const imageWindow = window.open(url, "_blank");
-
-    if (imageWindow) {
-      showToast("Image opened. Right click or hold to save.", "good");
-
-      setTimeout(() => {
-        URL.revokeObjectURL(url);
-      }, 30000);
-
-      return;
-    }
-
-    fallbackDownloadReportImage(blob);
+    }, "image/png");
   } catch (error) {
     console.error(error);
     showToast("Report image failed.", "bad");
   }
 }
 
-async function buildReportCanvas() {
+async function buildReportCanvasSafe() {
+  if (typeof buildReportCanvas === "function") {
+    return await buildReportCanvas();
+  }
+
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
   if (!ctx) {
-    throw new Error("Canvas not supported");
+    throw new Error("Canvas engine unavailable.");
   }
 
   canvas.width = 1080;
@@ -2129,212 +2121,276 @@ async function buildReportCanvas() {
   const selectedParts = getSelectedPartsArray();
 
   const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, "#010302");
-  gradient.addColorStop(0.42, "#061108");
-  gradient.addColorStop(0.72, "#08070f");
-  gradient.addColorStop(1, "#170520");
+  gradient.addColorStop(0, "#020403");
+  gradient.addColorStop(0.55, "#07120a");
+  gradient.addColorStop(1, "#12051a");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.save();
-  ctx.globalAlpha = 0.24;
-  ctx.fillStyle = "#39ff14";
-  ctx.filter = "blur(70px)";
-  ctx.beginPath();
-  ctx.arc(220, 240, 180, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#b026ff";
-  ctx.beginPath();
-  ctx.arc(900, 300, 190, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#39ff14";
-  ctx.beginPath();
-  ctx.arc(850, 1160, 180, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  ctx.save();
   ctx.shadowColor = "#39ff14";
   ctx.shadowBlur = 34;
   ctx.strokeStyle = "#39ff14";
   ctx.lineWidth = 5;
-  roundRect(ctx, 70, 70, 940, 1210, 48, false, true);
-  ctx.restore();
-
-  ctx.save();
-  ctx.strokeStyle = "rgba(176, 38, 255, 0.35)";
-  ctx.lineWidth = 3;
-  roundRect(ctx, 86, 86, 908, 1178, 40, false, true);
-  ctx.restore();
-
-  await drawReportLogo(ctx);
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "900 52px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("PERFORMANCE REPORT", 540, 295);
-
-  ctx.fillStyle = "#39ff14";
-  ctx.shadowColor = "#39ff14";
-  ctx.shadowBlur = 28;
-  ctx.font = "900 118px Arial";
-  ctx.fillText(tier.grade, 540, 440);
+  roundRect(ctx, 70, 70, 940, 1210, 46, false, true);
 
   ctx.shadowBlur = 0;
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "900 44px Arial";
-  ctx.fillText(tier.label.toUpperCase(), 540, 505);
 
-  drawStat(ctx, "TOTAL", formatMoney(calculateTotalPrice()), 130, 590);
-  drawStat(ctx, "WATTAGE", calculateWattage() + "W", 560, 590);
-  drawStat(ctx, "FPS SCORE", String(score), 130, 760);
-  drawStat(ctx, "STATUS", getBuildStatus(), 560, 760);
+  await drawLogoOnCanvas(ctx, 540, 170);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 50px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("PERFORMANCE REPORT", 540, 285);
 
   ctx.fillStyle = "#39ff14";
-  ctx.font = "900 38px Arial";
+  ctx.font = "900 106px Arial";
+  ctx.fillText(tier.grade, 540, 420);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 44px Arial";
+  ctx.fillText(tier.label.toUpperCase(), 540, 488);
+
+  drawStat(ctx, "TOTAL", formatMoney(calculateTotalPrice()), 130, 575);
+  drawStat(ctx, "WATTAGE", calculateWattage() + "W", 560, 575);
+  drawStat(ctx, "FPS SCORE", String(score), 130, 735);
+  drawStat(ctx, "STATUS", getBuildStatus(), 560, 735);
+
+  ctx.fillStyle = "#39ff14";
+  ctx.font = "900 36px Arial";
   ctx.textAlign = "left";
-  ctx.fillText("SELECTED PARTS", 130, 960);
+  ctx.fillText("SELECTED PARTS", 130, 930);
 
   ctx.fillStyle = "#ffffff";
   ctx.font = "800 27px Arial";
 
-  let y = 1018;
+  let y = 990;
 
   if (selectedParts.length === 0) {
     ctx.fillText("No parts selected yet.", 130, y);
   } else {
     selectedParts.slice(0, 8).forEach((item) => {
-      const label = categoryLabels[item.category];
-      const line = label + ": " + item.part.name;
-      drawWrappedText(ctx, line, 130, y, 820, 34, 1);
-      y += 47;
+      const line = categoryLabels[item.category] + ": " + item.part.name;
+      ctx.fillText(line.slice(0, 52), 130, y);
+      y += 45;
     });
   }
 
-  const warnings = getCompatibilityWarnings();
-  const badCount = warnings.filter((warning) => warning.type === "bad").length;
-
-  ctx.fillStyle = badCount > 0 ? "#ff315d" : "#39ff14";
-  ctx.font = "900 28px Arial";
+  ctx.fillStyle = "rgba(255,255,255,0.72)";
+  ctx.font = "800 24px Arial";
   ctx.textAlign = "center";
-  ctx.fillText(
-    badCount > 0 ? "FIX COMPATIBILITY BEFORE BUYING" : "BUILD CHECK COMPLETE",
-    540,
-    1210
-  );
-
-  ctx.fillStyle = "rgba(255,255,255,0.62)";
-  ctx.font = "800 23px Arial";
-  ctx.fillText("Generated by EMX PC Builder", 540, 1248);
+  ctx.fillText("Generated by EMX PC Builder", 540, 1225);
 
   return canvas;
 }
 
-function drawReportLogo(ctx) {
+function drawLogoOnCanvas(ctx, x, y) {
   return new Promise((resolve) => {
-    const logo = new Image();
+    const img = new Image();
+    img.src = "emx-logo.png";
 
-    logo.onload = () => {
+    img.onload = () => {
       ctx.save();
 
       ctx.shadowColor = "#39ff14";
-      ctx.shadowBlur = 36;
+      ctx.shadowBlur = 34;
 
-      ctx.beginPath();
-      ctx.arc(540, 175, 78, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
-      ctx.fill();
-
-      ctx.drawImage(logo, 430, 65, 220, 220);
+      const size = 170;
+      ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
 
       ctx.restore();
       resolve();
     };
 
-    logo.onerror = () => {
-      ctx.save();
+    img.onerror = () => {
       ctx.fillStyle = "#39ff14";
-      ctx.shadowColor = "#39ff14";
-      ctx.shadowBlur = 24;
-      ctx.font = "900 82px Arial";
+      ctx.font = "900 76px Arial";
       ctx.textAlign = "center";
-      ctx.fillText("EMX", 540, 190);
-      ctx.restore();
+      ctx.fillText("EMX", x, y + 24);
       resolve();
     };
-
-    logo.src = "emx-logo.png";
   });
 }
 
-function drawStat(ctx, label, value, x, y) {
-  ctx.save();
+function showReportImagePreview(imageUrl, blob) {
+  const oldPreview = document.getElementById("reportImagePreviewOverlay");
+  if (oldPreview) {
+    oldPreview.remove();
+  }
 
+  const overlay = document.createElement("div");
+  overlay.id = "reportImagePreviewOverlay";
+
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    z-index: 30000;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    background: rgba(0, 0, 0, 0.84);
+    backdrop-filter: blur(14px);
+  `;
+
+  overlay.innerHTML = `
+    <div style="
+      width: min(96vw, 560px);
+      max-height: 92vh;
+      overflow: auto;
+      padding: 14px;
+      border-radius: 26px;
+      border: 1px solid rgba(57, 255, 20, 0.42);
+      background: rgba(5, 8, 10, 0.96);
+      box-shadow: 0 0 34px rgba(57, 255, 20, 0.2);
+    ">
+      <div style="
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+      ">
+        <strong style="
+          color: #39ff14;
+          font-size: 0.9rem;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        ">Report Image Preview</strong>
+
+        <button id="closeReportImagePreviewBtn" type="button" style="
+          width: 40px;
+          height: 40px;
+          border-radius: 14px;
+          border: 1px solid rgba(255, 49, 93, 0.45);
+          background: rgba(255, 49, 93, 0.14);
+          color: #fff;
+          font-size: 1.3rem;
+          font-weight: 900;
+        ">×</button>
+      </div>
+
+      <img src="${imageUrl}" alt="EMX Performance Report" style="
+        display: block;
+        width: 100%;
+        border-radius: 18px;
+        border: 1px solid rgba(57, 255, 20, 0.28);
+        background: #000;
+      ">
+
+      <div style="
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+      ">
+        <button id="downloadPreviewImageBtn" type="button" style="
+          min-height: 50px;
+          border-radius: 16px;
+          border: 0;
+          color: #041006;
+          background: linear-gradient(135deg, #39ff14, #b7ff81);
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        ">Download PNG</button>
+
+        <button id="openPreviewImageBtn" type="button" style="
+          min-height: 50px;
+          border-radius: 16px;
+          border: 1px solid rgba(57, 255, 20, 0.38);
+          color: #39ff14;
+          background: rgba(57, 255, 20, 0.08);
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        ">Open Image Tab</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const closeBtn = document.getElementById("closeReportImagePreviewBtn");
+  const downloadBtn = document.getElementById("downloadPreviewImageBtn");
+  const openBtn = document.getElementById("openPreviewImageBtn");
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      overlay.remove();
+      URL.revokeObjectURL(imageUrl);
+    });
+  }
+
+  if (downloadBtn) {
+    downloadBtn.addEventListener("click", () => {
+      fallbackDownloadReportImage(blob);
+    });
+  }
+
+  if (openBtn) {
+    openBtn.addEventListener("click", () => {
+      window.open(imageUrl, "_blank");
+      showToast("Image opened in a new tab.", "good");
+    });
+  }
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) {
+      overlay.remove();
+      URL.revokeObjectURL(imageUrl);
+    }
+  });
+}
+
+function fallbackDownloadReportImage(blob) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.download = "emx-performance-report.png";
+  link.href = url;
+  link.style.display = "none";
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 8000);
+
+  showToast("Report image downloaded.", "good");
+}
+
+function drawStat(ctx, label, value, x, y) {
   ctx.shadowColor = "#39ff14";
-  ctx.shadowBlur = 18;
-  ctx.strokeStyle = "rgba(57, 255, 20, 0.88)";
-  ctx.lineWidth = 4;
-  roundRect(ctx, x, y, 390, 118, 22, false, true);
+  ctx.shadowBlur = 14;
+  ctx.strokeStyle = "rgba(57,255,20,0.65)";
+  ctx.lineWidth = 3;
+  roundRect(ctx, x, y, 390, 115, 24, false, true);
 
   ctx.shadowBlur = 0;
-  ctx.fillStyle = "rgba(57, 255, 20, 0.09)";
-  roundRect(ctx, x, y, 390, 118, 22, true, false);
+  ctx.fillStyle = "rgba(57,255,20,0.16)";
+  roundRect(ctx, x, y, 390, 115, 24, true, false);
 
   ctx.fillStyle = "rgba(255,255,255,0.68)";
-  ctx.font = "900 24px Arial";
+  ctx.font = "900 22px Arial";
   ctx.textAlign = "left";
-  ctx.fillText(label, x + 28, y + 40);
+  ctx.fillText(label, x + 28, y + 38);
 
   ctx.fillStyle = "#ffffff";
   ctx.font = "900 38px Arial";
-  ctx.fillText(value, x + 28, y + 86);
-
-  ctx.restore();
-}
-
-function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
-  const words = String(text).split(" ");
-  let line = "";
-  let linesUsed = 0;
-
-  for (let i = 0; i < words.length; i++) {
-    const testLine = line + words[i] + " ";
-    const metrics = ctx.measureText(testLine);
-
-    if (metrics.width > maxWidth && i > 0) {
-      linesUsed++;
-
-      if (linesUsed >= maxLines) {
-        ctx.fillText(line.trim().slice(0, 58) + "...", x, y);
-        return;
-      }
-
-      ctx.fillText(line.trim(), x, y);
-      line = words[i] + " ";
-      y += lineHeight;
-    } else {
-      line = testLine;
-    }
-  }
-
-  ctx.fillText(line.trim(), x, y);
+  ctx.fillText(value, x + 28, y + 84);
 }
 
 function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
-  const r = Math.min(radius, width / 2, height / 2);
-
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + width - r, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-  ctx.lineTo(x + width, y + height - r);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-  ctx.lineTo(x + r, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
   ctx.closePath();
 
   if (fill) {
