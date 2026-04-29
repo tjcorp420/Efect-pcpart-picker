@@ -1968,6 +1968,7 @@ function showShareButton(text) {
   const terminal = document.querySelector(".emx-export-terminal");
 
   if (!terminal) {
+    showToast("Export terminal not found.", "bad");
     return;
   }
 
@@ -1998,34 +1999,18 @@ function showShareButton(text) {
 
   if (shareBtn) {
     shareBtn.addEventListener("click", async () => {
-      const canNativeShare = Boolean(navigator.share) && !isDesktopLikeDevice();
-
-      if (canNativeShare) {
-        try {
-          await navigator.share({
-            title: "EMX Performance Report",
-            text: text
-          });
-
-          showToast("Report shared.", "good");
-          return;
-        } catch (error) {
-          console.warn("Native share failed:", error);
-        }
-      }
-
       try {
         if (navigator.clipboard && window.isSecureContext) {
           await navigator.clipboard.writeText(text);
-          showToast("PC share fallback: report copied.", "good");
+          showToast("Report copied. Paste it anywhere to share.", "good");
           return;
         }
       } catch (error) {
-        console.warn("Clipboard fallback failed:", error);
+        console.warn("Clipboard failed:", error);
       }
 
       openManualCopyModal(text);
-      showToast("PC share fallback opened manual copy.", "warn");
+      showToast("Manual copy opened.", "warn");
     });
   }
 
@@ -2036,7 +2021,9 @@ function showShareButton(text) {
   }
 
   if (imageBtn) {
-    imageBtn.addEventListener("click", downloadReportImage);
+    imageBtn.addEventListener("click", () => {
+      downloadReportImage();
+    });
   }
 
   if (manualBtn) {
@@ -2051,32 +2038,30 @@ function showShareButton(text) {
   }
 }
 
-function isDesktopLikeDevice() {
-  const ua = navigator.userAgent.toLowerCase();
-  return ua.includes("windows") || ua.includes("macintosh") || ua.includes("linux");
-}
+function downloadReportText(text) {
+  try {
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
 
-function downloadReportTxt(text) {
-  const blob = new Blob([text], {
-    type: "text/plain;charset=utf-8"
-  });
-  
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  
-  link.download = "emx-performance-report.txt";
-  link.href = url;
-  link.style.display = "none";
-  
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 1000);
-  
-  showToast("Report TXT downloaded.", "good");
+    link.download = "emx-performance-report.txt";
+    link.href = url;
+    link.style.display = "none";
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 1500);
+
+    showToast("Report TXT downloaded.", "good");
+  } catch (error) {
+    console.error(error);
+    openManualCopyModal(text);
+    showToast("TXT download failed. Manual copy opened.", "warn");
+  }
 }
 
 async function downloadReportImage() {
@@ -2102,10 +2087,6 @@ async function downloadReportImage() {
 }
 
 async function buildReportCanvasSafe() {
-  if (typeof buildReportCanvas === "function") {
-    return await buildReportCanvas();
-  }
-
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
@@ -2135,35 +2116,35 @@ async function buildReportCanvasSafe() {
 
   ctx.shadowBlur = 0;
 
-  await drawLogoOnCanvas(ctx, 540, 170);
+  await drawLogoOnCanvas(ctx, 540, 175);
 
   ctx.fillStyle = "#ffffff";
   ctx.font = "900 50px Arial";
   ctx.textAlign = "center";
-  ctx.fillText("PERFORMANCE REPORT", 540, 285);
+  ctx.fillText("PERFORMANCE REPORT", 540, 300);
 
   ctx.fillStyle = "#39ff14";
   ctx.font = "900 106px Arial";
-  ctx.fillText(tier.grade, 540, 420);
+  ctx.fillText(tier.grade, 540, 430);
 
   ctx.fillStyle = "#ffffff";
   ctx.font = "900 44px Arial";
-  ctx.fillText(tier.label.toUpperCase(), 540, 488);
+  ctx.fillText(tier.label.toUpperCase(), 540, 500);
 
-  drawStat(ctx, "TOTAL", formatMoney(calculateTotalPrice()), 130, 575);
-  drawStat(ctx, "WATTAGE", calculateWattage() + "W", 560, 575);
-  drawStat(ctx, "FPS SCORE", String(score), 130, 735);
-  drawStat(ctx, "STATUS", getBuildStatus(), 560, 735);
+  drawStat(ctx, "TOTAL", formatMoney(calculateTotalPrice()), 130, 585);
+  drawStat(ctx, "WATTAGE", calculateWattage() + "W", 560, 585);
+  drawStat(ctx, "FPS SCORE", String(score), 130, 745);
+  drawStat(ctx, "STATUS", getBuildStatus(), 560, 745);
 
   ctx.fillStyle = "#39ff14";
   ctx.font = "900 36px Arial";
   ctx.textAlign = "left";
-  ctx.fillText("SELECTED PARTS", 130, 930);
+  ctx.fillText("SELECTED PARTS", 130, 940);
 
   ctx.fillStyle = "#ffffff";
   ctx.font = "800 27px Arial";
 
-  let y = 990;
+  let y = 1000;
 
   if (selectedParts.length === 0) {
     ctx.fillText("No parts selected yet.", 130, y);
@@ -2178,7 +2159,7 @@ async function buildReportCanvasSafe() {
   ctx.fillStyle = "rgba(255,255,255,0.72)";
   ctx.font = "800 24px Arial";
   ctx.textAlign = "center";
-  ctx.fillText("Generated by EMX PC Builder", 540, 1225);
+  ctx.fillText("Generated by EMX PC Builder", 540, 1228);
 
   return canvas;
 }
@@ -2190,11 +2171,10 @@ function drawLogoOnCanvas(ctx, x, y) {
 
     img.onload = () => {
       ctx.save();
-
       ctx.shadowColor = "#39ff14";
-      ctx.shadowBlur = 34;
+      ctx.shadowBlur = 35;
 
-      const size = 170;
+      const size = 180;
       ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
 
       ctx.restore();
@@ -2203,9 +2183,9 @@ function drawLogoOnCanvas(ctx, x, y) {
 
     img.onerror = () => {
       ctx.fillStyle = "#39ff14";
-      ctx.font = "900 76px Arial";
+      ctx.font = "900 82px Arial";
       ctx.textAlign = "center";
-      ctx.fillText("EMX", x, y + 24);
+      ctx.fillText("EMX", x, y + 25);
       resolve();
     };
   });
@@ -2227,7 +2207,7 @@ function showReportImagePreview(imageUrl, blob) {
     display: grid;
     place-items: center;
     padding: 18px;
-    background: rgba(0, 0, 0, 0.84);
+    background: rgba(0, 0, 0, 0.86);
     backdrop-filter: blur(14px);
   `;
 
@@ -2328,7 +2308,7 @@ function showReportImagePreview(imageUrl, blob) {
   if (openBtn) {
     openBtn.addEventListener("click", () => {
       window.open(imageUrl, "_blank");
-      showToast("Image opened in a new tab.", "good");
+      showToast("Image opened in new tab.", "good");
     });
   }
 
@@ -2400,113 +2380,6 @@ function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
   if (stroke) {
     ctx.stroke();
   }
-}
-
-function showReportImagePreview(dataUrl, blob) {
-  const oldPreview = document.getElementById("reportImagePreviewModal");
-
-  if (oldPreview) {
-    oldPreview.remove();
-  }
-
-  const modal = document.createElement("div");
-  modal.id = "reportImagePreviewModal";
-  modal.className = "report-image-preview-modal";
-
-  modal.innerHTML = `
-    <div class="report-image-preview-card">
-      <div class="report-image-preview-header">
-        <div>
-          <span>EMX REPORT IMAGE</span>
-          <strong>Preview Before Saving</strong>
-        </div>
-        <button id="closeReportImagePreviewBtn" type="button">×</button>
-      </div>
-
-      <img src="${dataUrl}" alt="EMX Performance Report Preview" class="report-image-preview-img">
-
-      <div class="report-image-preview-actions">
-        <button id="shareReportImageBtn" type="button">SHARE / SAVE</button>
-        <button id="downloadReportImageBtn" type="button">DOWNLOAD PNG</button>
-        <button id="closeReportImageBottomBtn" type="button">DONE</button>
-      </div>
-
-      <p class="report-image-preview-note">
-        On iPhone, use SHARE / SAVE, then choose Save Image. On PC, DOWNLOAD PNG saves the file.
-      </p>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  const closeTop = document.getElementById("closeReportImagePreviewBtn");
-  const closeBottom = document.getElementById("closeReportImageBottomBtn");
-  const shareBtn = document.getElementById("shareReportImageBtn");
-  const downloadBtn = document.getElementById("downloadReportImageBtn");
-
-  function closePreview() {
-    modal.remove();
-  }
-
-  closeTop.addEventListener("click", closePreview);
-  closeBottom.addEventListener("click", closePreview);
-
-  modal.addEventListener("click", (event) => {
-    if (event.target === modal) {
-      closePreview();
-    }
-  });
-
-  shareBtn.addEventListener("click", async () => {
-    const file = new File([blob], "emx-performance-report.png", {
-      type: "image/png"
-    });
-
-    if (
-      navigator.share &&
-      navigator.canShare &&
-      navigator.canShare({ files: [file] })
-    ) {
-      try {
-        await navigator.share({
-          title: "EMX Performance Report",
-          text: "Save or share your EMX performance report image.",
-          files: [file]
-        });
-
-        showToast("Report image ready.", "good");
-      } catch (error) {
-        showToast("Share cancelled.", "warn");
-      }
-
-      return;
-    }
-
-    fallbackDownloadReportImage(blob);
-  });
-
-  downloadBtn.addEventListener("click", () => {
-    fallbackDownloadReportImage(blob);
-  });
-
-  showToast("Report image preview opened.", "good");
-}
-
-function fallbackDownloadReportImage(blob) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-
-  link.download = "emx-performance-report.png";
-  link.href = url;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 1000);
-
-  showToast("Report image downloaded.", "good");
 }
 function hideCopyOverlay() {
   const overlay = document.getElementById("copyOverlay");
