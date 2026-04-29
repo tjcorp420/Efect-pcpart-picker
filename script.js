@@ -1882,28 +1882,118 @@ function getReportText() {
 
 async function copyPerformanceReport() {
   const text = getReportText();
-  
+
   if (!text.trim()) {
     showToast("No report text available.", "bad");
     return;
   }
-  
+
   showCopyOverlay();
   updateCopyOverlay("INITIALIZING EXPORT...", 10);
-  
-  await wait(1200);
+
+  await wait(800);
   updateCopyOverlay("VALIDATING REPORT DATA...", 25);
-  
-  await wait(1300);
+
+  await wait(900);
   updateCopyOverlay("BUILDING PERFORMANCE REPORT...", 45);
-  
-  await wait(1300);
+
+  await wait(900);
   updateCopyOverlay("PREPARING SHARE PACKAGE...", 70);
-  
-  await wait(1200);
+
+  await wait(800);
   updateCopyOverlay("REPORT READY", 100, true);
-  
-  showShareButton(text);
+
+  setTimeout(() => {
+    try {
+      showShareButton(text);
+    } catch (error) {
+      console.error("showShareButton failed:", error);
+      forceExportButtons(text);
+      return;
+    }
+
+    const actions = document.getElementById("copyOverlayActions");
+
+    if (!actions) {
+      forceExportButtons(text);
+    }
+  }, 120);
+}
+
+function forceExportButtons(text) {
+  const terminal = document.querySelector(".emx-export-terminal");
+
+  if (!terminal) {
+    showToast("Export terminal not found.", "bad");
+    return;
+  }
+
+  const oldActions = document.getElementById("copyOverlayActions");
+
+  if (oldActions) {
+    oldActions.remove();
+  }
+
+  const actions = document.createElement("div");
+  actions.id = "copyOverlayActions";
+  actions.className = "emx-terminal-actions";
+
+  actions.innerHTML = `
+    <button id="shareReportOverlayBtn" type="button">SHARE REPORT</button>
+    <button id="downloadReportOverlayBtn" type="button">DOWNLOAD TXT</button>
+    <button id="saveReportImageOverlayBtn" type="button">SAVE REPORT IMAGE</button>
+    <button id="manualCopyOverlayBtn" type="button">MANUAL COPY</button>
+    <button id="closeExportOverlayBtn" type="button">DONE</button>
+  `;
+
+  terminal.appendChild(actions);
+
+  const shareBtn = document.getElementById("shareReportOverlayBtn");
+  const downloadBtn = document.getElementById("downloadReportOverlayBtn");
+  const imageBtn = document.getElementById("saveReportImageOverlayBtn");
+  const manualBtn = document.getElementById("manualCopyOverlayBtn");
+  const closeBtn = document.getElementById("closeExportOverlayBtn");
+
+  if (shareBtn) {
+    shareBtn.addEventListener("click", async () => {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          showToast("Report copied. Paste it anywhere to share.", "good");
+          return;
+        }
+      } catch (error) {
+        console.warn("Clipboard failed:", error);
+      }
+
+      hideCopyOverlay();
+      openManualCopyModal(text);
+      showToast("Manual copy opened.", "warn");
+    });
+  }
+
+  if (downloadBtn) {
+    downloadBtn.addEventListener("click", () => {
+      downloadReportText(text);
+    });
+  }
+
+  if (imageBtn) {
+    imageBtn.addEventListener("click", () => {
+      downloadReportImage();
+    });
+  }
+
+  if (manualBtn) {
+    manualBtn.addEventListener("click", () => {
+      hideCopyOverlay();
+      openManualCopyModal(text);
+    });
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", hideCopyOverlay);
+  }
 }
 
 function showCopyOverlay() {
@@ -1964,32 +2054,6 @@ function updateCopyOverlay(message, percent, success = false) {
   }
 }
 
-async function downloadReportImage() {
-  try {
-    showToast("Generating report image...", "good");
-
-    const canvas = await buildReportCanvasSafe();
-
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        showToast("Could not create report image.", "bad");
-        return;
-      }
-
-      const imageUrl = URL.createObjectURL(blob);
-
-      hideCopyOverlay();
-
-      setTimeout(() => {
-        showReportImagePreview(imageUrl, blob);
-        showToast("Report image preview opened.", "good");
-      }, 280);
-    }, "image/png");
-  } catch (error) {
-    console.error(error);
-    showToast("Report image failed.", "bad");
-  }
-}
 
 async function downloadReportImage() {
   try {
