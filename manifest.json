@@ -1,6 +1,7 @@
 {
   "name": "EMX PC Builder",
   "short_name": "EMX Builder",
+  "description": "EMX PC Builder with performance reports, saved builds, and account login.",
   "start_url": "/",
   "scope": "/",
   "display": "fullscreen",
