@@ -216,6 +216,29 @@
   </label>
 
   <label class="filter-box">
+    <span>Retailer</span>
+    <select id="retailerFilter">
+      <option value="trusted">Trusted Stores</option>
+      <option value="all">All Safe Results</option>
+    </select>
+  </label>
+
+  <label class="filter-box">
+    <span>Condition</span>
+    <select id="conditionFilter">
+      <option value="new">New Only</option>
+      <option value="all">New + Open Box</option>
+    </select>
+  </label>
+
+  <label class="filter-box">
+    <span>Spec</span>
+    <select id="platformFilter">
+      <option value="all">Any Spec</option>
+    </select>
+  </label>
+
+  <label class="filter-box">
     <span>Min Price</span>
     <input id="minPriceInput" type="number" min="0" placeholder="$0" />
   </label>
@@ -231,6 +254,11 @@
   </label>
 
   <label class="filter-box">
+    <span>Min Rating</span>
+    <input id="minRatingInput" type="number" min="0" max="5" step="0.1" placeholder="Any" />
+  </label>
+
+  <label class="filter-box">
     <span>Max Wattage</span>
     <input id="maxWattageInput" type="number" min="0" placeholder="Any" />
   </label>
@@ -239,9 +267,11 @@
     <span>Sort</span>
     <select id="sortSelect">
       <option value="recommended">Recommended</option>
+      <option value="trusted">Best Store Trust</option>
       <option value="priceLow">Price: Low to High</option>
       <option value="priceHigh">Price: High to Low</option>
       <option value="performance">Performance Score</option>
+      <option value="rating">Rating</option>
     </select>
   </label>
 
@@ -294,7 +324,7 @@
     <div class="report-backdrop" id="reportBackdrop"></div>
 
     <section class="report-card">
-      <button id="closeReportBtn" class="report-close-btn" type="button">×</button>
+      <button id="closeReportBtn" class="report-close-btn" type="button">x</button>
 
       <div class="report-logo-float">
         <img src="emx-logo.png" alt="EMX Logo" />

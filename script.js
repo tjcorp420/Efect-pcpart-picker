@@ -30,9 +30,13 @@ const categoryTitleText = document.getElementById("categoryTitleText");
 const searchInput = document.getElementById("searchInput");
 const sortSelect = document.getElementById("sortSelect");
 const brandFilter = document.getElementById("brandFilter");
+const retailerFilter = document.getElementById("retailerFilter");
+const conditionFilter = document.getElementById("conditionFilter");
+const platformFilter = document.getElementById("platformFilter");
 const minPriceInput = document.getElementById("minPriceInput");
 const maxPriceInput = document.getElementById("maxPriceInput");
 const minScoreInput = document.getElementById("minScoreInput");
+const minRatingInput = document.getElementById("minRatingInput");
 const maxWattageInput = document.getElementById("maxWattageInput");
 const clearFiltersBtn = document.getElementById("clearFiltersBtn");
 const liveSearchBtn = document.getElementById("liveSearchBtn");
@@ -249,8 +253,8 @@ const partsDB = {
   motherboard: [
     {
       id: "mb-b550",
-      name: "B550 Gaming Motherboard",
-      brand: "AM4 Board",
+      name: "MSI B550 Gaming Motherboard",
+      brand: "MSI",
       price: 120,
       wattage: 35,
       score: 65,
@@ -262,8 +266,8 @@ const partsDB = {
     },
     {
       id: "mb-x570",
-      name: "X570 Pro Motherboard",
-      brand: "AM4 Board",
+      name: "ASUS X570 Pro Motherboard",
+      brand: "ASUS",
       price: 210,
       wattage: 45,
       score: 78,
@@ -275,8 +279,8 @@ const partsDB = {
     },
     {
       id: "mb-b650",
-      name: "B650 Gaming Motherboard",
-      brand: "AM5 Board",
+      name: "Gigabyte B650 Gaming Motherboard",
+      brand: "Gigabyte",
       price: 170,
       wattage: 40,
       score: 76,
@@ -288,8 +292,8 @@ const partsDB = {
     },
     {
       id: "mb-x670e",
-      name: "X670E Elite Motherboard",
-      brand: "AM5 Board",
+      name: "ASRock X670E Elite Motherboard",
+      brand: "ASRock",
       price: 320,
       wattage: 55,
       score: 90,
@@ -301,8 +305,8 @@ const partsDB = {
     },
     {
       id: "mb-b760",
-      name: "B760 Intel Motherboard",
-      brand: "Intel Board",
+      name: "ASUS B760 Intel Motherboard",
+      brand: "ASUS",
       price: 150,
       wattage: 38,
       score: 74,
@@ -314,8 +318,8 @@ const partsDB = {
     },
     {
       id: "mb-z790",
-      name: "Z790 Performance Motherboard",
-      brand: "Intel Board",
+      name: "MSI Z790 Performance Motherboard",
+      brand: "MSI",
       price: 280,
       wattage: 55,
       score: 88,
@@ -330,8 +334,8 @@ const partsDB = {
   ram: [
     {
       id: "ram-16-ddr4",
-      name: "16GB DDR4 3200",
-      brand: "DDR4 Kit",
+      name: "Corsair 16GB DDR4 3200",
+      brand: "Corsair",
       price: 45,
       wattage: 8,
       score: 58,
@@ -342,8 +346,8 @@ const partsDB = {
     },
     {
       id: "ram-32-ddr4",
-      name: "32GB DDR4 3600 RGB",
-      brand: "DDR4 Kit",
+      name: "G.Skill 32GB DDR4 3600 RGB",
+      brand: "G.Skill",
       price: 80,
       wattage: 10,
       score: 72,
@@ -354,8 +358,8 @@ const partsDB = {
     },
     {
       id: "ram-32-ddr5",
-      name: "32GB DDR5 6000 RGB",
-      brand: "DDR5 Kit",
+      name: "Kingston 32GB DDR5 6000 RGB",
+      brand: "Kingston",
       price: 115,
       wattage: 12,
       score: 86,
@@ -366,8 +370,8 @@ const partsDB = {
     },
     {
       id: "ram-64-ddr5",
-      name: "64GB DDR5 6400 RGB",
-      brand: "DDR5 Kit",
+      name: "Crucial 64GB DDR5 6400 RGB",
+      brand: "Crucial",
       price: 220,
       wattage: 18,
       score: 94,
@@ -381,8 +385,8 @@ const partsDB = {
   storage: [
     {
       id: "ssd-1tb-nvme",
-      name: "1TB NVMe SSD",
-      brand: "NVMe",
+      name: "WD 1TB NVMe SSD",
+      brand: "Western Digital",
       price: 65,
       wattage: 6,
       score: 76,
@@ -392,8 +396,8 @@ const partsDB = {
     },
     {
       id: "ssd-2tb-nvme",
-      name: "2TB NVMe SSD",
-      brand: "NVMe",
+      name: "Samsung 2TB NVMe SSD",
+      brand: "Samsung",
       price: 120,
       wattage: 7,
       score: 86,
@@ -403,8 +407,8 @@ const partsDB = {
     },
     {
       id: "ssd-4tb-nvme",
-      name: "4TB Gen4 NVMe SSD",
-      brand: "NVMe",
+      name: "Crucial 4TB Gen4 NVMe SSD",
+      brand: "Crucial",
       price: 280,
       wattage: 9,
       score: 96,
@@ -417,8 +421,8 @@ const partsDB = {
   psu: [
     {
       id: "psu-550",
-      name: "550W Bronze PSU",
-      brand: "Power Supply",
+      name: "EVGA 550W Bronze PSU",
+      brand: "EVGA",
       price: 55,
       wattage: 0,
       score: 58,
@@ -428,8 +432,8 @@ const partsDB = {
     },
     {
       id: "psu-650",
-      name: "650W Gold PSU",
-      brand: "Power Supply",
+      name: "Seasonic 650W Gold PSU",
+      brand: "Seasonic",
       price: 85,
       wattage: 0,
       score: 72,
@@ -439,8 +443,8 @@ const partsDB = {
     },
     {
       id: "psu-850",
-      name: "850W Gold Modular PSU",
-      brand: "Power Supply",
+      name: "Corsair 850W Gold Modular PSU",
+      brand: "Corsair",
       price: 130,
       wattage: 0,
       score: 88,
@@ -450,8 +454,8 @@ const partsDB = {
     },
     {
       id: "psu-1000",
-      name: "1000W Platinum PSU",
-      brand: "Power Supply",
+      name: "be quiet! 1000W Platinum PSU",
+      brand: "be quiet!",
       price: 220,
       wattage: 0,
       score: 96,
@@ -464,8 +468,8 @@ const partsDB = {
   case: [
     {
       id: "case-budget-atx",
-      name: "Budget ATX Case",
-      brand: "ATX Case",
+      name: "Montech Budget ATX Case",
+      brand: "Montech",
       price: 55,
       wattage: 0,
       score: 55,
@@ -476,8 +480,8 @@ const partsDB = {
     },
     {
       id: "case-airflow-atx",
-      name: "Airflow RGB ATX Case",
-      brand: "ATX Case",
+      name: "Corsair Airflow RGB ATX Case",
+      brand: "Corsair",
       price: 95,
       wattage: 0,
       score: 76,
@@ -488,8 +492,8 @@ const partsDB = {
     },
     {
       id: "case-showcase-atx",
-      name: "Glass Showcase RGB Case",
-      brand: "ATX Case",
+      name: "Lian Li Glass Showcase RGB Case",
+      brand: "Lian Li",
       price: 160,
       wattage: 0,
       score: 90,
@@ -503,8 +507,8 @@ const partsDB = {
   cooler: [
     {
       id: "cooler-stock",
-      name: "Basic Air Cooler",
-      brand: "CPU Cooler",
+      name: "DeepCool Basic Air Cooler",
+      brand: "DeepCool",
       price: 30,
       wattage: 0,
       score: 55,
@@ -515,8 +519,8 @@ const partsDB = {
     },
     {
       id: "cooler-tower",
-      name: "RGB Tower Cooler",
-      brand: "CPU Cooler",
+      name: "Thermalright RGB Tower Cooler",
+      brand: "Thermalright",
       price: 60,
       wattage: 3,
       score: 72,
@@ -527,8 +531,8 @@ const partsDB = {
     },
     {
       id: "cooler-aio-240",
-      name: "240mm AIO Liquid Cooler",
-      brand: "CPU Cooler",
+      name: "NZXT 240mm AIO Liquid Cooler",
+      brand: "NZXT",
       price: 115,
       wattage: 6,
       score: 86,
@@ -539,8 +543,8 @@ const partsDB = {
     },
     {
       id: "cooler-aio-360",
-      name: "360mm Elite AIO Cooler",
-      brand: "CPU Cooler",
+      name: "Corsair 360mm Elite AIO Cooler",
+      brand: "Corsair",
       price: 180,
       wattage: 9,
       score: 96,
@@ -566,12 +570,57 @@ const categoryLabels = {
   cooler: "Cooler"
 };
 
+const knownBrandsByCategory = {
+  cpu: ["AMD", "Intel"],
+  gpu: ["NVIDIA", "AMD", "ASUS", "MSI", "Gigabyte", "PNY", "Zotac", "Sapphire", "PowerColor", "XFX", "ASRock", "Acer", "Galax", "Palit"],
+  motherboard: ["ASUS", "MSI", "Gigabyte", "ASRock", "EVGA", "NZXT", "Biostar", "Aorus", "ROG", "TUF"],
+  ram: ["Corsair", "G.Skill", "Kingston", "Crucial", "Teamgroup", "Patriot", "PNY", "ADATA", "Lexar", "Mushkin", "Silicon Power"],
+  storage: ["Samsung", "Western Digital", "WD", "Crucial", "Kingston", "Seagate", "Solidigm", "Sabrent", "SK hynix", "Lexar", "Corsair", "Teamgroup", "ADATA", "PNY", "SanDisk", "Inland"],
+  psu: ["Corsair", "Seasonic", "EVGA", "be quiet!", "Thermaltake", "Cooler Master", "MSI", "ASUS", "SilverStone", "Super Flower", "FSP", "NZXT", "Lian Li", "Antec"],
+  case: ["Corsair", "NZXT", "Lian Li", "Fractal", "Fractal Design", "Phanteks", "Cooler Master", "Thermaltake", "be quiet!", "Hyte", "Montech", "DeepCool", "Antec", "SilverStone", "ASUS", "MSI"],
+  cooler: ["Noctua", "Cooler Master", "Corsair", "NZXT", "Arctic", "be quiet!", "Thermaltake", "Lian Li", "DeepCool", "EK", "MSI", "ASUS", "ID-COOLING", "Scythe", "Thermalright"]
+};
+
+const trustedRetailers = [
+  "Amazon",
+  "Newegg",
+  "Best Buy",
+  "B&H",
+  "Micro Center",
+  "Walmart",
+  "Adorama",
+  "Antonline",
+  "Dell",
+  "HP",
+  "Lenovo",
+  "Corsair",
+  "ASUS",
+  "MSI",
+  "NVIDIA",
+  "AMD",
+  "Intel",
+  "Samsung",
+  "Western Digital",
+  "Crucial"
+];
+
+const platformOptionsByCategory = {
+  cpu: ["AM5", "AM4", "LGA1851", "LGA1700"],
+  gpu: ["RTX 50", "RTX 40", "RX 9000", "RX 7000", "RX 6000", "16GB+", "12GB+", "8GB"],
+  motherboard: ["AM5", "AM4", "LGA1851", "LGA1700", "DDR5", "DDR4", "ATX", "Micro ATX", "Mini ITX"],
+  ram: ["DDR5", "DDR4", "64GB", "32GB", "16GB"],
+  storage: ["NVMe", "PCIe 5.0", "PCIe 4.0", "4TB", "2TB", "1TB"],
+  psu: ["ATX 3.0", "ATX 3.1", "80+ Gold", "80+ Platinum", "Modular", "850W+", "750W+"],
+  case: ["ATX", "Micro ATX", "Mini ITX", "Airflow", "Mesh", "Glass"],
+  cooler: ["AM5", "AM4", "LGA1851", "LGA1700", "360mm", "280mm", "240mm", "Air Cooler"]
+};
+
 /* =========================================================
    06. SPLASH SCREEN
 ========================================================= */
 function startSplash() {
   const messages = [
-    "Loading sample part database...",
+    "Loading builder database...",
     "Checking compatibility engine...",
     "Preparing EMX builder...",
     "Loading saved builds...",
@@ -607,7 +656,7 @@ function startSplash() {
         splashScreen.classList.remove("active");
         builderScreen.classList.add("active");
         renderAll();
-        showToast("EMX Builder loaded. Local sample data active.", "good");
+        showToast("EMX Builder loaded. Use Live Search for current products.", "good");
       }, 350);
     }
   }, 90);
@@ -976,10 +1025,13 @@ function getVisibleParts() {
   const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
   const sort = sortSelect ? sortSelect.value : "recommended";
   const brand = brandFilter ? brandFilter.value : "all";
+  const retailer = retailerFilter ? retailerFilter.value : "trusted";
+  const platform = platformFilter ? platformFilter.value : "all";
 
   const minPrice = minPriceInput ? Number(minPriceInput.value || 0) : 0;
   const maxPrice = maxPriceInput ? Number(maxPriceInput.value || 0) : 0;
   const minScore = minScoreInput ? Number(minScoreInput.value || 0) : 0;
+  const minRating = minRatingInput ? Number(minRatingInput.value || 0) : 0;
   const maxWattage = maxWattageInput ? Number(maxWattageInput.value || 0) : 0;
 
   let parts = [...partsDB[activeCategory]];
@@ -996,6 +1048,16 @@ function getVisibleParts() {
     });
   }
 
+  if (platform && platform !== "all") {
+    parts = parts.filter((part) => partMatchesPlatform(part, platform));
+  }
+
+  if (retailer && retailer !== "all" && retailer !== "trusted") {
+    parts = parts.filter((part) => {
+      return String(part.source || part.seller || "").toLowerCase().includes(retailer.toLowerCase());
+    });
+  }
+
   if (minPrice > 0) {
     parts = parts.filter((part) => Number(part.price || 0) >= minPrice);
   }
@@ -1006,6 +1068,10 @@ function getVisibleParts() {
 
   if (minScore > 0) {
     parts = parts.filter((part) => Number(part.score || 0) >= minScore);
+  }
+
+  if (minRating > 0) {
+    parts = parts.filter((part) => Number(part.rating || 0) >= minRating);
   }
 
   if (maxWattage > 0) {
@@ -1022,6 +1088,14 @@ function getVisibleParts() {
 
   if (sort === "performance") {
     parts.sort((a, b) => b.score - a.score);
+  }
+
+  if (sort === "rating") {
+    parts.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+  }
+
+  if (sort === "trusted") {
+    parts.sort((a, b) => Number(b.trustScore || 0) - Number(a.trustScore || 0));
   }
 
   if (sort === "recommended") {
@@ -1048,11 +1122,62 @@ function getPartSearchText(part) {
     part.formFactor,
     part.capacity,
     part.length,
+    part.generation,
+    part.tier,
+    part.vram,
+    part.source,
+    part.seller,
     specsText
   ]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
+}
+
+function partMatchesPlatform(part, platform) {
+  const wanted = String(platform || "").toLowerCase();
+
+  if (!wanted || wanted === "all") {
+    return true;
+  }
+
+  if (wanted === "16gb+") {
+    return /\b(16|20|24|32|48)gb\b/i.test(getPartSearchText(part));
+  }
+
+  if (wanted === "12gb+") {
+    return /\b(12|16|20|24|32|48)gb\b/i.test(getPartSearchText(part));
+  }
+
+  if (wanted === "rtx 50") {
+    return /\brtx\s?50\d{2}\b/i.test(getPartSearchText(part));
+  }
+
+  if (wanted === "rtx 40") {
+    return /\brtx\s?40\d{2}\b/i.test(getPartSearchText(part));
+  }
+
+  if (wanted === "rx 9000") {
+    return /\brx\s?9\d{3}\b/i.test(getPartSearchText(part));
+  }
+
+  if (wanted === "rx 7000") {
+    return /\brx\s?7\d{3}\b/i.test(getPartSearchText(part));
+  }
+
+  if (wanted === "rx 6000") {
+    return /\brx\s?6\d{3}\b/i.test(getPartSearchText(part));
+  }
+
+  if (wanted === "850w+") {
+    return Number(part.capacity || 0) >= 850 || /\b(850|900|1000|1200|1300|1500)w\b/i.test(getPartSearchText(part));
+  }
+
+  if (wanted === "750w+") {
+    return Number(part.capacity || 0) >= 750 || /\b(750|850|900|1000|1200|1300|1500)w\b/i.test(getPartSearchText(part));
+  }
+
+  return getPartSearchText(part).includes(wanted);
 }
 
 function renderBrandFilter() {
@@ -1061,12 +1186,14 @@ function renderBrandFilter() {
   }
 
   const currentValue = brandFilter.value || "all";
+  const sourceParts = emxLiveModeActive ? emxLiveProducts : partsDB[activeCategory];
 
-  const brands = [...new Set(
-    partsDB[activeCategory]
+  const brands = [...new Set([
+    ...(knownBrandsByCategory[activeCategory] || []),
+    ...sourceParts
       .map((part) => String(part.brand || "").trim())
       .filter(Boolean)
-  )].sort();
+  ])].sort((a, b) => a.localeCompare(b));
 
   brandFilter.innerHTML = `
     <option value="all">All Brands</option>
@@ -1078,12 +1205,59 @@ function renderBrandFilter() {
   brandFilter.value = stillExists ? currentValue : "all";
 }
 
+function renderRetailerFilter(parts = []) {
+  if (!retailerFilter) {
+    return;
+  }
+
+  const currentValue = retailerFilter.value || "trusted";
+  const retailers = [...new Set([
+    ...trustedRetailers,
+    ...parts
+      .map((part) => String(part.source || part.seller || "").trim())
+      .filter(Boolean)
+  ])].sort((a, b) => a.localeCompare(b));
+
+  retailerFilter.innerHTML = `
+    <option value="trusted">Trusted Stores</option>
+    <option value="all">All Safe Results</option>
+    ${retailers.map((retailer) => `<option value="${escapeHtml(retailer)}">${escapeHtml(retailer)}</option>`).join("")}
+  `;
+
+  const stillExists = currentValue === "trusted" || currentValue === "all" || retailers.some((retailer) => {
+    return retailer.toLowerCase() === currentValue.toLowerCase();
+  });
+
+  retailerFilter.value = stillExists ? currentValue : "trusted";
+}
+
+function renderPlatformFilter() {
+  if (!platformFilter) {
+    return;
+  }
+
+  const currentValue = platformFilter.value || "all";
+  const options = platformOptionsByCategory[activeCategory] || [];
+
+  platformFilter.innerHTML = `
+    <option value="all">Any Spec</option>
+    ${options.map((option) => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`).join("")}
+  `;
+
+  const stillExists = options.some((option) => option.toLowerCase() === currentValue.toLowerCase());
+  platformFilter.value = stillExists ? currentValue : "all";
+}
+
 function clearAdvancedFilters() {
   if (searchInput) searchInput.value = "";
   if (brandFilter) brandFilter.value = "all";
+  if (retailerFilter) retailerFilter.value = "trusted";
+  if (conditionFilter) conditionFilter.value = "new";
+  if (platformFilter) platformFilter.value = "all";
   if (minPriceInput) minPriceInput.value = "";
   if (maxPriceInput) maxPriceInput.value = "";
   if (minScoreInput) minScoreInput.value = "";
+  if (minRatingInput) minRatingInput.value = "";
   if (maxWattageInput) maxWattageInput.value = "";
   if (sortSelect) sortSelect.value = "recommended";
 
@@ -1179,7 +1353,7 @@ function renderWarnings() {
                     type="button"
                   >
                     <strong>${escapeHtml(categoryLabels[suggestion.category])}: ${escapeHtml(suggestion.part.name)}</strong>
-                    <span>${formatMoney(suggestion.part.price)} • Score ${suggestion.part.score}</span>
+                    <span>${formatMoney(suggestion.part.price)}  -  Score ${suggestion.part.score}</span>
                   </button>
                 `;
               })
@@ -1227,8 +1401,10 @@ function renderSelectedParts() {
 
 function renderParts() {
   renderBrandFilter();
+  renderPlatformFilter();
 
   const parts = getVisibleParts();
+  renderRetailerFilter(parts);
   categoryTitleText.textContent = categoryLabels[activeCategory] + " Parts";
 
   if (parts.length === 0) {
@@ -1259,7 +1435,7 @@ function renderPartCard(part) {
         <div class="part-info">
           <span>${escapeHtml(part.brand)}</span>
           <h4>${escapeHtml(part.name)}</h4>
-          <p>${escapeHtml(part.use || "Sample PC part")} • Sample Score ${part.score}</p>
+          <p>${escapeHtml(part.use || "Curated PC part")} - Performance Score ${part.score}</p>
         </div>
 
         <div class="part-price">${formatMoney(part.price)}</div>
@@ -1293,7 +1469,7 @@ function renderSavedBuilds() {
       return `
         <button class="saved-build-card" data-save-id="${save.id}" type="button">
           <strong>${escapeHtml(save.name)}</strong>
-          <span>${formatMoney(save.total)} • ${save.wattage}W • Score ${save.score}</span>
+          <span>${formatMoney(save.total)}  -  ${save.wattage}W  -  Score ${save.score}</span>
         </button>
       `;
     })
@@ -1458,7 +1634,7 @@ function getBuildText() {
   const lines = [];
   
   lines.push("EMX PC Builder Parts List");
-  lines.push("NOTE: V1 uses local sample data, not live pricing/specs.");
+  lines.push("NOTE: Live Search results include current store data when SerpAPI is configured. Curated entries use estimated specs.");
   lines.push("-------------------------");
   
   Object.keys(build).forEach((category) => {
@@ -1469,7 +1645,7 @@ function getBuildText() {
   lines.push("-------------------------");
   lines.push("Total: " + formatMoney(calculateTotalPrice()));
   lines.push("Estimated Wattage: " + calculateWattage() + "W");
-  lines.push("Sample FPS Score: " + calculateFpsScore());
+  lines.push("Estimated FPS Score: " + calculateFpsScore());
   lines.push("Status: " + getBuildStatus());
   
   return lines.join("\n");
@@ -1704,7 +1880,7 @@ function getPeripheralSuggestions() {
   if (score >= 78) {
     monitor = "1440p 165Hz or 1080p 240Hz monitor";
     keyboard = "Low-latency mechanical keyboard with rapid trigger-style feel";
-    mouse = "Lightweight 1K–4K polling gaming mouse";
+    mouse = "Lightweight 1K-4K polling gaming mouse";
     headset = "Low-latency wireless headset or clean wired headset";
   }
 
@@ -1933,7 +2109,7 @@ function getReportText() {
   const lines = [];
 
   lines.push("EMX PERFORMANCE REPORT");
-  lines.push("NOTE: V1 report uses local sample data and estimated projections.");
+  lines.push("NOTE: Reports use estimated projections; live results include current store data when SerpAPI is configured.");
   lines.push("-------------------------");
   lines.push("Rating: " + tier.grade + " - " + tier.label);
   lines.push("Total Price: " + formatMoney(calculateTotalPrice()));
@@ -2137,7 +2313,7 @@ function updateCopyOverlay(message, percent, success = false) {
   const percentText = document.getElementById("copyOverlayPercent");
   
   if (status) {
-    status.textContent = success ? `${message} ✅` : message;
+    status.textContent = success ? `${message} OK` : message;
   }
   
   if (progress) {
@@ -2396,7 +2572,7 @@ function drawInfoStrip(ctx, x, y, width, height, rows) {
   let rowY = y + 28;
 
   rows.slice(0, 5).forEach((row) => {
-    ctx.fillText(`• ${row}`, x + 24, rowY);
+    ctx.fillText(` -  ${row}`, x + 24, rowY);
     rowY += 20;
   });
 }
@@ -2505,7 +2681,7 @@ function showReportImagePreview(imageUrl, blob) {
           color: #fff;
           font-size: 1.3rem;
           font-weight: 900;
-        ">×</button>
+        ">x</button>
       </div>
 
       <img src="${imageUrl}" alt="EMX Performance Report" style="
@@ -2670,14 +2846,23 @@ categoryTabs.addEventListener("click", (event) => {
   activeCategory = button.dataset.category;
   
   if (brandFilter) {
-  brandFilter.value = "all";
-}
+    brandFilter.value = "all";
+  }
+
+  if (platformFilter) {
+    platformFilter.value = "all";
+  }
 
   document.querySelectorAll(".tab-btn").forEach((tab) => {
     tab.classList.toggle("active", tab.dataset.category === activeCategory);
   });
 
-  renderParts();
+  if (emxLiveModeActive) {
+    emxExitLiveMode();
+  } else {
+    renderParts();
+  }
+
   showToast(categoryLabels[activeCategory] + " category opened.", "good");
 });
 
@@ -2716,6 +2901,18 @@ if (brandFilter) {
   brandFilter.addEventListener("change", renderParts);
 }
 
+if (retailerFilter) {
+  retailerFilter.addEventListener("change", renderParts);
+}
+
+if (conditionFilter) {
+  conditionFilter.addEventListener("change", renderParts);
+}
+
+if (platformFilter) {
+  platformFilter.addEventListener("change", renderParts);
+}
+
 if (minPriceInput) {
   minPriceInput.addEventListener("input", renderParts);
 }
@@ -2726,6 +2923,10 @@ if (maxPriceInput) {
 
 if (minScoreInput) {
   minScoreInput.addEventListener("input", renderParts);
+}
+
+if (minRatingInput) {
+  minRatingInput.addEventListener("input", renderParts);
 }
 
 if (maxWattageInput) {
@@ -2819,7 +3020,7 @@ function getReportText() {
 
   lines.push("EMX PERFORMANCE REPORT");
   lines.push("Generated by EMX PC Builder");
-  lines.push("NOTE: V1 uses local sample data and estimated projections.");
+  lines.push("NOTE: Reports use estimated projections; live results include current store data when SerpAPI is configured.");
   lines.push("=================================================");
   lines.push("");
   lines.push("OVERALL RATING");
@@ -3106,7 +3307,7 @@ async function buildReportCanvasSafe() {
     165,
     "CPU",
     cpu ? cpu.name : "Not selected",
-    cpu ? cpu.specs.Cores + " • " + cpu.socket + " • " + cpu.wattage + "W" : "Select a CPU"
+    cpu ? cpu.specs.Cores + "  -  " + cpu.socket + "  -  " + cpu.wattage + "W" : "Select a CPU"
   );
 
   drawInfoCard(
@@ -3117,7 +3318,7 @@ async function buildReportCanvasSafe() {
     165,
     "GPU",
     gpu ? gpu.name : "Not selected",
-    gpu ? gpu.specs.VRAM + " • " + gpu.wattage + "W • " + gpu.length + "mm" : "Select a GPU"
+    gpu ? gpu.specs.VRAM + "  -  " + gpu.wattage + "W  -  " + gpu.length + "mm" : "Select a GPU"
   );
 
   drawInfoCard(
@@ -3128,7 +3329,7 @@ async function buildReportCanvasSafe() {
     165,
     "MOTHERBOARD",
     motherboard ? motherboard.name : "Not selected",
-    motherboard ? motherboard.socket + " • " + motherboard.ramType + " • " + motherboard.formFactor : "Select motherboard"
+    motherboard ? motherboard.socket + "  -  " + motherboard.ramType + "  -  " + motherboard.formFactor : "Select motherboard"
   );
 
   drawInfoCard(
@@ -3139,7 +3340,7 @@ async function buildReportCanvasSafe() {
     165,
     "MEMORY",
     ram ? ram.name : "Not selected",
-    ram ? ram.specs.Capacity + " • " + ram.specs.Type + " • " + ram.specs.Speed : "Select RAM"
+    ram ? ram.specs.Capacity + "  -  " + ram.specs.Type + "  -  " + ram.specs.Speed : "Select RAM"
   );
 
   drawInfoCard(
@@ -3150,7 +3351,7 @@ async function buildReportCanvasSafe() {
     165,
     "STORAGE",
     storage ? storage.name : "Not selected",
-    storage ? storage.specs.Capacity + " • " + storage.specs.Type + " • " + storage.specs.Speed : "Select storage"
+    storage ? storage.specs.Capacity + "  -  " + storage.specs.Type + "  -  " + storage.specs.Speed : "Select storage"
   );
 
   drawInfoCard(
@@ -3161,7 +3362,7 @@ async function buildReportCanvasSafe() {
     165,
     "POWER",
     psu ? psu.name : "Not selected",
-    psu ? psu.capacity + "W PSU • " + psuHeadroom + "W headroom" : "Select PSU"
+    psu ? psu.capacity + "W PSU  -  " + psuHeadroom + "W headroom" : "Select PSU"
   );
 
   drawInfoCard(
@@ -3172,7 +3373,7 @@ async function buildReportCanvasSafe() {
     165,
     "CASE",
     pcCase ? pcCase.name : "Not selected",
-    pcCase ? "Max GPU " + pcCase.maxGpuLength + "mm • " + pcCase.specs.Airflow + " airflow" : "Select case"
+    pcCase ? "Max GPU " + pcCase.maxGpuLength + "mm  -  " + pcCase.specs.Airflow + " airflow" : "Select case"
   );
 
   drawInfoCard(
@@ -3227,7 +3428,7 @@ async function buildReportCanvasSafe() {
   ctx.fillStyle = "rgba(255,255,255,0.65)";
   ctx.font = "800 24px Arial";
   ctx.textAlign = "center";
-  ctx.fillText("Generated by EMX PC Builder • Local sample data estimate", 700, 2430);
+  ctx.fillText("Generated by EMX PC Builder - Estimated performance report", 700, 2430);
 
   return canvas;
 }
@@ -3327,7 +3528,7 @@ function drawNoteStrip(ctx, x, y, w, h, notes) {
   let yPos = y + 36;
 
   notes.slice(0, 4).forEach((note) => {
-    drawCanvasWrappedText(ctx, "• " + note, x + 28, yPos, w - 56, 26, 1);
+    drawCanvasWrappedText(ctx, " -  " + note, x + 28, yPos, w - 56, 26, 1);
     yPos += 28;
   });
 }
@@ -3686,7 +3887,7 @@ function renderSavedBuilds() {
               <strong class="emx-save-name">${safeName}</strong>
 
               <span class="emx-save-meta">
-                ${total} • ${wattage}W • Score ${score}
+                ${total}  -  ${wattage}W  -  Score ${score}
               </span>
             </div>
           </div>
@@ -3862,6 +4063,18 @@ function emxGetLiveSearchParams() {
     params.set("brand", brandFilter.value);
   }
 
+  if (retailerFilter && retailerFilter.value) {
+    params.set("retailer", retailerFilter.value);
+  }
+
+  if (conditionFilter && conditionFilter.value) {
+    params.set("condition", conditionFilter.value);
+  }
+
+  if (platformFilter && platformFilter.value && platformFilter.value !== "all") {
+    params.set("platform", platformFilter.value);
+  }
+
   if (sortSelect && sortSelect.value) {
     params.set("sort", sortSelect.value);
   }
@@ -3876,6 +4089,14 @@ function emxGetLiveSearchParams() {
 
   if (minScoreInput && minScoreInput.value) {
     params.set("minScore", minScoreInput.value);
+  }
+
+  if (minRatingInput && minRatingInput.value) {
+    params.set("minRating", minRatingInput.value);
+  }
+
+  if (maxWattageInput && maxWattageInput.value) {
+    params.set("maxWattage", maxWattageInput.value);
   }
 
   return params;
@@ -3954,9 +4175,59 @@ function emxExitLiveMode() {
 
 const emxOriginalGetVisiblePartsLive = getVisibleParts;
 
+function emxApplyLiveClientFilters(products) {
+  const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+  const brand = brandFilter ? brandFilter.value : "all";
+  const retailer = retailerFilter ? retailerFilter.value : "trusted";
+  const platform = platformFilter ? platformFilter.value : "all";
+  const minPrice = minPriceInput ? Number(minPriceInput.value || 0) : 0;
+  const maxPrice = maxPriceInput ? Number(maxPriceInput.value || 0) : 0;
+  const minScore = minScoreInput ? Number(minScoreInput.value || 0) : 0;
+  const minRating = minRatingInput ? Number(minRatingInput.value || 0) : 0;
+  const maxWattage = maxWattageInput ? Number(maxWattageInput.value || 0) : 0;
+  const sort = sortSelect ? sortSelect.value : "recommended";
+
+  let filtered = [...products];
+
+  if (query) {
+    filtered = filtered.filter((part) => emxGetTextForLivePart(part).includes(query));
+  }
+
+  if (brand && brand !== "all") {
+    filtered = filtered.filter((part) => String(part.brand || "").toLowerCase() === brand.toLowerCase());
+  }
+
+  if (retailer && retailer !== "all" && retailer !== "trusted") {
+    filtered = filtered.filter((part) => String(part.source || part.seller || "").toLowerCase().includes(retailer.toLowerCase()));
+  }
+
+  if (platform && platform !== "all") {
+    filtered = filtered.filter((part) => partMatchesPlatform(part, platform));
+  }
+
+  if (minPrice > 0) filtered = filtered.filter((part) => Number(part.price || 0) >= minPrice);
+  if (maxPrice > 0) filtered = filtered.filter((part) => Number(part.price || 0) <= maxPrice);
+  if (minScore > 0) filtered = filtered.filter((part) => Number(part.score || 0) >= minScore);
+  if (minRating > 0) filtered = filtered.filter((part) => Number(part.rating || 0) >= minRating);
+  if (maxWattage > 0) filtered = filtered.filter((part) => Number(part.wattage || 0) <= maxWattage);
+
+  if (sort === "priceLow") filtered.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+  if (sort === "priceHigh") filtered.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+  if (sort === "performance") filtered.sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+  if (sort === "rating") filtered.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+  if (sort === "trusted") filtered.sort((a, b) => Number(b.trustScore || 0) - Number(a.trustScore || 0));
+  if (sort === "recommended") filtered.sort((a, b) => {
+    const scoreA = Number(a.score || 0) + Number(a.shoppingScore || 0) * 0.25 + Number(a.trustScore || 0) * 0.35;
+    const scoreB = Number(b.score || 0) + Number(b.shoppingScore || 0) * 0.25 + Number(b.trustScore || 0) * 0.35;
+    return scoreB - scoreA;
+  });
+
+  return filtered;
+}
+
 getVisibleParts = function () {
   if (emxLiveModeActive) {
-    return [...emxLiveProducts];
+    return emxApplyLiveClientFilters(emxLiveProducts);
   }
 
   return emxOriginalGetVisiblePartsLive();
@@ -3990,9 +4261,9 @@ renderPartCard = function (part) {
 
       <div class="part-top">
         <div class="part-info">
-          <span>LIVE • ${escapeHtml(part.source || "Store")}</span>
+          <span>LIVE - ${escapeHtml(part.source || "Store")} - Trust ${Number(part.trustScore || 0)}</span>
           <h4>${escapeHtml(part.name)}</h4>
-          <p>${escapeHtml(part.use || "Live product")} • Score ${Number(part.score || 0)}</p>
+          <p>${escapeHtml(part.use || "Live product")} - Score ${Number(part.score || 0)}${part.rating ? " - " + Number(part.rating || 0) + "/5" : ""}</p>
         </div>
 
         <div class="part-price">${formatMoney(part.price)}</div>
