@@ -24,7 +24,7 @@
 
   <title>EMX PC Builder</title>
 
-  <link rel="stylesheet" href="style.css?v=20260501-parts-ui" />
+  <link rel="stylesheet" href="style.css?v=20260501-shell-ui" />
 </head>
 
 <body class="emx-auth-locked">
@@ -84,6 +84,14 @@
 
         <button id="saveBuildBtn" class="small-btn" type="button">SAVE</button>
       </header>
+
+      <nav class="quick-jump-bar" aria-label="Builder quick navigation">
+        <a href="#partsSection">Parts</a>
+        <a href="#filtersSection">Filters</a>
+        <a href="#selectedSection">Build</a>
+        <a href="#warningsSection">Checks</a>
+        <a href="#savesSection">Saves</a>
+      </nav>
 
       <!-- =======================================================
            06. BUILD SUMMARY STATS
@@ -154,7 +162,7 @@
       <!-- =======================================================
            08. COMPATIBILITY WARNINGS
       ======================================================== -->
-      <section class="compat-panel">
+      <section id="warningsSection" class="compat-panel">
         <div class="section-title-row">
           <div>
             <p class="panel-label">COMPATIBILITY CHECK</p>
@@ -170,7 +178,7 @@
       <!-- =======================================================
            09. SELECTED BUILD LIST
       ======================================================== -->
-      <section class="selected-panel">
+      <section id="selectedSection" class="selected-panel">
         <div class="section-title-row">
           <div>
             <p class="panel-label">CURRENT BUILD</p>
@@ -202,7 +210,7 @@
       <!-- =======================================================
      11. SEARCH / FILTER BAR
 ======================================================== -->
-<section class="search-panel advanced-search-panel">
+<section id="filtersSection" class="search-panel advanced-search-panel">
   <label class="search-box wide-filter">
     <span>Search Parts</span>
     <input id="searchInput" type="search" placeholder="Search CPU, GPU, brand, socket, DDR5, RTX..." />
@@ -223,58 +231,6 @@
     </select>
   </label>
 
-  <label class="filter-box">
-    <span>Condition</span>
-    <select id="conditionFilter">
-      <option value="new">New Only</option>
-      <option value="all">New + Open Box</option>
-    </select>
-  </label>
-
-  <label class="filter-box">
-    <span>Spec</span>
-    <select id="platformFilter">
-      <option value="all">Any Spec</option>
-    </select>
-  </label>
-
-  <label class="filter-box">
-    <span>Min Price</span>
-    <input id="minPriceInput" type="number" min="0" placeholder="$0" />
-  </label>
-
-  <label class="filter-box">
-    <span>Max Price</span>
-    <input id="maxPriceInput" type="number" min="0" placeholder="$9999" />
-  </label>
-
-  <label class="filter-box">
-    <span>Min Score</span>
-    <input id="minScoreInput" type="number" min="0" max="100" placeholder="0" />
-  </label>
-
-  <label class="filter-box">
-    <span>Min Rating</span>
-    <input id="minRatingInput" type="number" min="0" max="5" step="0.1" placeholder="Any" />
-  </label>
-
-  <label class="filter-box">
-    <span>Max Wattage</span>
-    <input id="maxWattageInput" type="number" min="0" placeholder="Any" />
-  </label>
-
-  <label class="filter-box">
-    <span>Sort</span>
-    <select id="sortSelect">
-      <option value="recommended">Recommended</option>
-      <option value="trusted">Best Store Trust</option>
-      <option value="priceLow">Price: Low to High</option>
-      <option value="priceHigh">Price: High to Low</option>
-      <option value="performance">Performance Score</option>
-      <option value="rating">Rating</option>
-    </select>
-  </label>
-
 <button id="liveSearchBtn" class="small-btn live-search-btn" type="button">
   LIVE SEARCH
 </button>
@@ -282,12 +238,70 @@
   <button id="clearFiltersBtn" class="small-btn ghost clear-filters-btn" type="button">
     RESET FILTERS
   </button>
+
+  <details class="advanced-filter-drawer">
+    <summary>Advanced filters</summary>
+
+    <div class="advanced-filter-grid">
+      <label class="filter-box">
+        <span>Condition</span>
+        <select id="conditionFilter">
+          <option value="new">New Only</option>
+          <option value="all">New + Open Box</option>
+        </select>
+      </label>
+
+      <label class="filter-box">
+        <span>Spec</span>
+        <select id="platformFilter">
+          <option value="all">Any Spec</option>
+        </select>
+      </label>
+
+      <label class="filter-box">
+        <span>Min Price</span>
+        <input id="minPriceInput" type="number" min="0" placeholder="$0" />
+      </label>
+
+      <label class="filter-box">
+        <span>Max Price</span>
+        <input id="maxPriceInput" type="number" min="0" placeholder="$9999" />
+      </label>
+
+      <label class="filter-box">
+        <span>Min Score</span>
+        <input id="minScoreInput" type="number" min="0" max="100" placeholder="0" />
+      </label>
+
+      <label class="filter-box">
+        <span>Min Rating</span>
+        <input id="minRatingInput" type="number" min="0" max="5" step="0.1" placeholder="Any" />
+      </label>
+
+      <label class="filter-box">
+        <span>Max Wattage</span>
+        <input id="maxWattageInput" type="number" min="0" placeholder="Any" />
+      </label>
+
+      <label class="filter-box">
+        <span>Sort</span>
+        <select id="sortSelect">
+          <option value="recommended">Recommended</option>
+          <option value="trusted">Best Store Trust</option>
+          <option value="priceLow">Price: Low to High</option>
+          <option value="priceHigh">Price: High to Low</option>
+          <option value="performance">Performance Score</option>
+          <option value="rating">Rating</option>
+        </select>
+      </label>
+    </div>
+  </details>
 </section>
 
       <!-- =======================================================
            12. PARTS LIST
       ======================================================== -->
-      <section class="parts-panel">
+      <section id="partsSection" class="parts-panel">
         <div class="section-title-row">
           <div>
             <p class="panel-label">PART DATABASE</p>
@@ -301,7 +315,7 @@
       <!-- =======================================================
            13. SAVED BUILDS
       ======================================================== -->
-      <section class="saved-panel">
+      <section id="savesSection" class="saved-panel">
         <div class="section-title-row">
           <div>
             <p class="panel-label">LOCAL SAVES</p>
@@ -434,7 +448,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=20260501-parts-ui"></script>
-<script type="module" src="auth.js?v=20260501-parts-ui"></script>
+  <script src="script.js?v=20260501-shell-ui"></script>
+<script type="module" src="auth.js?v=20260501-shell-ui"></script>
 </body>
 </html>

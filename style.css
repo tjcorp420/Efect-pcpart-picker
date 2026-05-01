@@ -3266,3 +3266,298 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* =========================================================
+   27. EMX APP SHELL + COMPACT NAV
+========================================================= */
+html {
+  scroll-behavior: smooth;
+}
+
+.app {
+  background:
+    radial-gradient(circle at 8% 8%, rgba(40, 209, 124, 0.22), transparent 28%),
+    radial-gradient(circle at 92% 18%, rgba(75, 130, 245, 0.22), transparent 32%),
+    radial-gradient(circle at 45% 110%, rgba(176, 38, 255, 0.15), transparent 34%),
+    linear-gradient(180deg, #0a111b, #070b11 62%, #05070b);
+}
+
+.top-header {
+  border-bottom-color: rgba(40, 209, 124, 0.36);
+  background:
+    linear-gradient(90deg, rgba(40, 209, 124, 0.14), rgba(75, 130, 245, 0.08) 52%, rgba(176, 38, 255, 0.1)),
+    rgba(7, 11, 17, 0.94);
+}
+
+.header-brand {
+  position: relative;
+}
+
+.header-logo-wrap {
+  border-color: rgba(40, 209, 124, 0.58);
+  background:
+    radial-gradient(circle at 35% 24%, rgba(40, 209, 124, 0.5), transparent 34%),
+    linear-gradient(135deg, #081810, #111a30 52%, #210d32);
+  box-shadow:
+    0 0 0 1px rgba(40, 209, 124, 0.18),
+    0 0 28px rgba(40, 209, 124, 0.3),
+    0 0 36px rgba(75, 130, 245, 0.18);
+}
+
+.header-logo-img {
+  filter:
+    drop-shadow(0 0 9px rgba(40, 209, 124, 0.82))
+    drop-shadow(0 0 16px rgba(176, 38, 255, 0.6));
+}
+
+.top-header h2 {
+  color: #ffffff;
+  text-shadow: 0 0 20px rgba(40, 209, 124, 0.18);
+}
+
+.quick-jump-bar {
+  position: sticky;
+  top: 75px;
+  z-index: 18;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: -4px 0 12px;
+  padding: 8px;
+  border: 1px solid rgba(40, 209, 124, 0.26);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(40, 209, 124, 0.12), rgba(75, 130, 245, 0.08)),
+    rgba(8, 13, 20, 0.9);
+  backdrop-filter: blur(14px);
+  scrollbar-width: none;
+}
+
+.quick-jump-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-jump-bar a {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 8px 12px;
+  border: 1px solid rgba(40, 209, 124, 0.25);
+  border-radius: 6px;
+  color: #dfffee;
+  background: rgba(40, 209, 124, 0.08);
+  text-decoration: none;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quick-jump-bar a:hover {
+  color: #06120c;
+  background: var(--green);
+}
+
+.search-panel.advanced-search-panel {
+  grid-template-columns: minmax(210px, 1.4fr) minmax(130px, 0.8fr) minmax(145px, 0.9fr) auto auto;
+  align-items: end;
+  padding: 12px;
+  border-color: rgba(40, 209, 124, 0.32);
+  background:
+    linear-gradient(135deg, rgba(40, 209, 124, 0.1), rgba(75, 130, 245, 0.06)),
+    rgba(7, 10, 17, 0.94);
+}
+
+.advanced-search-panel .wide-filter {
+  grid-column: auto;
+}
+
+.advanced-filter-drawer {
+  grid-column: 1 / -1;
+  border-top: 1px solid rgba(141, 155, 173, 0.18);
+  padding-top: 8px;
+}
+
+.advanced-filter-drawer summary {
+  width: max-content;
+  min-height: 32px;
+  padding: 8px 12px;
+  border: 1px solid rgba(75, 130, 245, 0.4);
+  border-radius: 6px;
+  color: #cfe3ff;
+  background: rgba(75, 130, 245, 0.12);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.advanced-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(118px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.tabs-panel {
+  border-color: rgba(75, 130, 245, 0.28);
+  background:
+    linear-gradient(90deg, rgba(75, 130, 245, 0.1), rgba(40, 209, 124, 0.05)),
+    var(--panel);
+}
+
+.tab-btn {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.parts-panel {
+  border-color: rgba(40, 209, 124, 0.26);
+}
+
+.parts-panel .section-title-row {
+  align-items: end;
+}
+
+.parts-panel .section-title-row::after {
+  content: "Live store data with EMX trust filtering";
+  color: rgba(223, 255, 238, 0.62);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-align: right;
+}
+
+.summary-card strong {
+  color: #ffffff;
+}
+
+.summary-card,
+.goal-panel,
+.compat-panel,
+.selected-panel {
+  background:
+    linear-gradient(135deg, rgba(40, 209, 124, 0.055), rgba(75, 130, 245, 0.035)),
+    var(--panel);
+}
+
+.selected-parts-list {
+  gap: 6px;
+}
+
+.selected-row {
+  padding: 8px;
+}
+
+.selected-row strong,
+.selected-row em {
+  font-size: 0.78rem;
+}
+
+@media (min-width: 900px) {
+  .builder-screen.active {
+    grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .quick-jump-bar {
+    grid-column: 1 / -1;
+    top: 82px;
+  }
+
+  .summary-grid,
+  .report-button-panel,
+  .goal-panel,
+  .compat-panel,
+  .selected-panel {
+    grid-column: 1;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    position: sticky;
+    top: 137px;
+    z-index: 10;
+  }
+
+  .selected-panel {
+    position: sticky;
+    top: 272px;
+    align-self: start;
+    max-height: calc(100vh - 290px);
+    overflow: auto;
+  }
+
+  .tabs-panel {
+    position: sticky;
+    top: 137px;
+    z-index: 14;
+  }
+
+  .search-panel.advanced-search-panel {
+    position: sticky;
+    top: 191px;
+    z-index: 13;
+  }
+}
+
+@media (max-width: 1100px) {
+  .search-panel.advanced-search-panel {
+    grid-template-columns: minmax(220px, 1fr) minmax(130px, 0.7fr) minmax(145px, 0.8fr);
+  }
+
+  .advanced-search-panel .live-search-btn,
+  .advanced-search-panel .clear-filters-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 780px) {
+  .quick-jump-bar {
+    top: 73px;
+    margin-bottom: 10px;
+  }
+
+  .search-panel.advanced-search-panel,
+  .advanced-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .advanced-search-panel .wide-filter,
+  .advanced-filter-drawer {
+    grid-column: 1 / -1;
+  }
+
+  .parts-panel .section-title-row::after {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .quick-jump-bar {
+    top: 68px;
+    margin-left: -4px;
+    margin-right: -4px;
+  }
+
+  .search-panel.advanced-search-panel,
+  .advanced-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .advanced-filter-drawer summary {
+    width: 100%;
+    text-align: center;
+  }
+
+  .part-card,
+  .live-part-card {
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .part-thumb-wrap,
+  .live-product-image-wrap {
+    width: 76px;
+    height: 76px;
+  }
+}

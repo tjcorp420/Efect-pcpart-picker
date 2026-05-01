@@ -1406,7 +1406,7 @@ function renderParts() {
 
   const parts = getVisibleParts();
   renderRetailerFilter(parts);
-  categoryTitleText.textContent = categoryLabels[activeCategory] + " Parts";
+  categoryTitleText.textContent = categoryLabels[activeCategory] + " Parts (" + parts.length + ")";
 
   if (parts.length === 0) {
     partsList.innerHTML = `<div class="warning warn">No parts found for this search.</div>`;
