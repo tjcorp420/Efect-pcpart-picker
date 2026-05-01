@@ -6085,3 +6085,375 @@ if (!window.emxSearchBindingsHardened) {
       control.addEventListener("change", emxRefreshLiveSearchFromFilters);
     });
 }
+
+/* =========================================================
+   27. RANK PREVIEW + BUILD DIRECTION ADVISOR
+========================================================= */
+
+const EMX_BUILD_PREF_KEY = "emx_pc_builder_preferences";
+
+function emxGetPreferenceControls() {
+  return {
+    cpu: document.getElementById("preferredCpuPlatform"),
+    gpu: document.getElementById("preferredGpuFamily"),
+    rank: document.getElementById("reportRankScale")
+  };
+}
+
+function emxLoadBuildPreferences() {
+  try {
+    return JSON.parse(localStorage.getItem(EMX_BUILD_PREF_KEY) || "{}");
+  } catch (error) {
+    console.error("EMX preference load failed:", error);
+    return {};
+  }
+}
+
+function emxSaveBuildPreferences() {
+  const controls = emxGetPreferenceControls();
+  const preferences = {
+    cpuPlatform: controls.cpu ? controls.cpu.value : "auto",
+    gpuFamily: controls.gpu ? controls.gpu.value : "auto"
+  };
+
+  localStorage.setItem(EMX_BUILD_PREF_KEY, JSON.stringify(preferences));
+}
+
+function emxApplyBuildPreferences() {
+  const controls = emxGetPreferenceControls();
+  const preferences = emxLoadBuildPreferences();
+
+  if (controls.cpu && preferences.cpuPlatform) controls.cpu.value = preferences.cpuPlatform;
+  if (controls.gpu && preferences.gpuFamily) controls.gpu.value = preferences.gpuFamily;
+}
+
+function emxGetBuildIntent() {
+  const controls = emxGetPreferenceControls();
+  return {
+    cpuPlatform: controls.cpu ? controls.cpu.value : "auto",
+    gpuFamily: controls.gpu ? controls.gpu.value : "auto"
+  };
+}
+
+function emxGetCpuPlatform(part) {
+  if (!part) return "unknown";
+
+  const text = emxNormalizeFilterText([part.name, part.brand, part.socket].filter(Boolean).join(" "));
+  if (text.includes("intel") || text.includes("lga") || /\bcore\s?(ultra|i[3579])\b/.test(text)) return "intel";
+  if (text.includes("amd") || text.includes("ryzen") || text.includes("am4") || text.includes("am5")) return "amd";
+  return "unknown";
+}
+
+function emxGetGpuFamily(part) {
+  if (!part) return "unknown";
+
+  const text = emxNormalizeFilterText([part.name, part.brand, part.generation, part.vram].filter(Boolean).join(" "));
+  if (text.includes("nvidia") || text.includes("geforce") || /\b(rtx|gtx)\b/.test(text)) return "nvidia";
+  if (text.includes("amd") || text.includes("radeon") || /\brx\s?[679]\d{3}\b/.test(text)) return "amd";
+  if (text.includes("intel") || text.includes("arc")) return "intel";
+  return "unknown";
+}
+
+function emxPlatformLabel(value) {
+  if (value === "intel") return "Intel";
+  if (value === "amd") return "AMD Ryzen";
+  if (value === "nvidia") return "NVIDIA / GeForce";
+  if (value === "unknown") return "Unknown";
+  return value;
+}
+
+function emxGetRankScale() {
+  return [
+    { grade: "D", label: "Basic", min: 1, max: 49 },
+    { grade: "C", label: "Entry", min: 50, max: 64 },
+    { grade: "B", label: "Balanced", min: 65, max: 77 },
+    { grade: "A", label: "High", min: 78, max: 87 },
+    { grade: "S", label: "Elite", min: 88, max: 94 },
+    { grade: "S+", label: "Extreme", min: 95, max: 100 }
+  ];
+}
+
+function emxRenderRankScale() {
+  const controls = emxGetPreferenceControls();
+  if (!controls.rank) return;
+
+  const score = calculateFpsScore();
+  controls.rank.innerHTML = emxGetRankScale()
+    .map((rank) => {
+      const active = score >= rank.min && score <= rank.max;
+      return `
+        <div class="rank-pill ${active ? "active" : ""}">
+          <strong>${escapeHtml(rank.grade)}</strong>
+          <span>${escapeHtml(rank.min + "-" + rank.max + " " + rank.label)}</span>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+const emxRankAdvisorBaseWarnings = getCompatibilityWarnings;
+getCompatibilityWarnings = function () {
+  const warnings = emxRankAdvisorBaseWarnings();
+  const intent = emxGetBuildIntent();
+  const cpu = getSelectedPart("cpu");
+  const gpu = getSelectedPart("gpu");
+  const motherboard = getSelectedPart("motherboard");
+
+  const realWarnings = warnings.filter((warning) => warning.type !== "good");
+
+  if (intent.cpuPlatform !== "auto") {
+    const cpuPlatform = emxGetCpuPlatform(cpu);
+    const motherboardPlatform = emxGetCpuPlatform(motherboard);
+
+    if (cpu && cpuPlatform !== "unknown" && cpuPlatform !== intent.cpuPlatform) {
+      realWarnings.push({
+        type: "bad",
+        issueType: "advisor-cpu-platform",
+        text: "Build direction mismatch: you selected " + emxPlatformLabel(intent.cpuPlatform) + " Build, but CPU is " + emxPlatformLabel(cpuPlatform) + ". Pick a matching CPU or change the build direction."
+      });
+    }
+
+    if (motherboard && motherboardPlatform !== "unknown" && motherboardPlatform !== intent.cpuPlatform) {
+      realWarnings.push({
+        type: "bad",
+        issueType: "advisor-motherboard-platform",
+        text: "Build direction mismatch: selected motherboard platform is " + emxPlatformLabel(motherboardPlatform) + ", but target is " + emxPlatformLabel(intent.cpuPlatform) + ". Pick a matching motherboard."
+      });
+    }
+  }
+
+  if (intent.gpuFamily !== "auto") {
+    const gpuFamily = emxGetGpuFamily(gpu);
+
+    if (gpu && gpuFamily !== "unknown" && gpuFamily !== intent.gpuFamily) {
+      realWarnings.push({
+        type: "warn",
+        issueType: "advisor-gpu-family",
+        text: "Build direction note: you selected " + emxPlatformLabel(intent.gpuFamily) + " GPU, but current GPU is " + emxPlatformLabel(gpuFamily) + ". Swap GPU if you want this exact build style."
+      });
+    }
+  }
+
+  if (realWarnings.length === 0) {
+    return [{
+      type: "good",
+      issueType: "advisor-clean",
+      text: "No compatibility issues found. Build matches the selected direction and looks ready."
+    }];
+  }
+
+  return realWarnings.filter((warning, index, arr) => {
+    const key = warning.issueType + "|" + warning.text;
+    return arr.findIndex((item) => item.issueType + "|" + item.text === key) === index;
+  });
+};
+
+const emxRankAdvisorBaseSuggestions = getCompatibilitySuggestions;
+getCompatibilitySuggestions = function () {
+  const suggestions = emxRankAdvisorBaseSuggestions();
+  const intent = emxGetBuildIntent();
+  const ram = getSelectedPart("ram");
+  const cpu = getSelectedPart("cpu");
+  const motherboard = getSelectedPart("motherboard");
+
+  function addSuggestion(issueType, category, part, reason) {
+    if (!part || build[category] === part.id) return;
+
+    const exists = suggestions.some((suggestion) => {
+      return suggestion.issueType === issueType && suggestion.category === category && suggestion.part.id === part.id;
+    });
+
+    if (exists) return;
+    suggestions.push({ issueType, category, part, reason });
+  }
+
+  if (intent.cpuPlatform !== "auto") {
+    partsDB.cpu
+      .filter((part) => emxGetCpuPlatform(part) === intent.cpuPlatform)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .forEach((part) => addSuggestion("advisor-cpu-platform", "cpu", part, "Matches your " + emxPlatformLabel(intent.cpuPlatform) + " target."));
+
+    partsDB.motherboard
+      .filter((part) => emxGetCpuPlatform(part) === intent.cpuPlatform)
+      .filter((part) => !cpu || part.socket === cpu.socket || emxGetCpuPlatform(cpu) !== intent.cpuPlatform)
+      .filter((part) => !ram || part.ramType === ram.ramType)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .forEach((part) => addSuggestion("advisor-motherboard-platform", "motherboard", part, "Matches CPU platform and selected RAM type."));
+  }
+
+  if (motherboard && cpu && cpu.socket !== motherboard.socket) {
+    partsDB.motherboard
+      .filter((part) => part.socket === cpu.socket)
+      .filter((part) => !ram || part.ramType === ram.ramType)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .forEach((part) => addSuggestion("socket", "motherboard", part, "Fixes the CPU socket mismatch."));
+  }
+
+  if (intent.gpuFamily !== "auto") {
+    partsDB.gpu
+      .filter((part) => emxGetGpuFamily(part) === intent.gpuFamily)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .forEach((part) => addSuggestion("advisor-gpu-family", "gpu", part, "Matches your " + emxPlatformLabel(intent.gpuFamily) + " GPU target."));
+  }
+
+  return suggestions;
+};
+
+renderWarnings = function () {
+  const warnings = getCompatibilityWarnings();
+  const suggestions = getCompatibilitySuggestions();
+
+  warningsList.innerHTML = warnings
+    .map((warning) => {
+      const matchingSuggestions = suggestions.filter((suggestion) => {
+        return suggestion.issueType === warning.issueType || suggestion.issueText === warning.text;
+      });
+
+      const advisorText = warning.type === "good"
+        ? ""
+        : `<span class="advisor-copy">Use a swap below, or change Build Direction if your target changed.</span>`;
+
+      const suggestionHtml = matchingSuggestions.length
+        ? `
+          <div class="suggestion-box">
+            <div class="suggestion-title-row">
+              <div class="suggestion-title">Compatible fix options</div>
+              <em>Tap to apply</em>
+            </div>
+            ${matchingSuggestions
+              .map((suggestion) => {
+                return `
+                  <button
+                    class="suggestion-card"
+                    data-suggest-category="${escapeHtml(suggestion.category)}"
+                    data-suggest-id="${escapeHtml(suggestion.part.id)}"
+                    type="button"
+                  >
+                    <strong>${escapeHtml(categoryLabels[suggestion.category])}: ${escapeHtml(suggestion.part.name)}</strong>
+                    <span>${formatMoney(suggestion.part.price)} - Score ${suggestion.part.score}${suggestion.reason ? " - " + escapeHtml(suggestion.reason) : ""}</span>
+                  </button>
+                `;
+              })
+              .join("")}
+          </div>
+        `
+        : "";
+
+      return `
+        <div class="warning ${warning.type}">
+          ${escapeHtml(warning.text)}
+          ${advisorText}
+          ${suggestionHtml}
+        </div>
+      `;
+    })
+    .join("");
+};
+
+const emxRankAdvisorBaseRenderReport = renderPerformanceReport;
+renderPerformanceReport = function () {
+  emxRankAdvisorBaseRenderReport();
+  emxRenderRankScale();
+};
+
+const emxRankAdvisorBaseGetReportText = getReportText;
+getReportText = function () {
+  const score = calculateFpsScore();
+  const intent = emxGetBuildIntent();
+  const scaleLines = emxGetRankScale()
+    .map((rank) => {
+      const active = score >= rank.min && score <= rank.max ? " < CURRENT" : "";
+      return rank.grade + " " + rank.label + ": " + rank.min + "-" + rank.max + active;
+    })
+    .join("\n");
+
+  const advisorSection = [
+    "RATING SCALE",
+    scaleLines,
+    "",
+    "BUILD DIRECTION",
+    "CPU Platform: " + (intent.cpuPlatform === "auto" ? "Auto Detect" : emxPlatformLabel(intent.cpuPlatform)),
+    "GPU Family: " + (intent.gpuFamily === "auto" ? "Auto Detect" : emxPlatformLabel(intent.gpuFamily))
+  ].join("\n");
+
+  return emxRankAdvisorBaseGetReportText().replace("\nIMPORTANT:", "\n" + advisorSection + "\n\nIMPORTANT:");
+};
+
+drawInfoCard = function (ctx, x, y, w, h, label, title, detail) {
+  drawSmallPanel(ctx, x, y, w, h, 24);
+
+  ctx.fillStyle = "#39ff14";
+  ctx.font = "900 23px Arial";
+  ctx.textAlign = "left";
+  ctx.fillText(label, x + 26, y + 36);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 29px Arial";
+  drawCanvasWrappedText(ctx, title, x + 26, y + 76, w - 52, 31, 2);
+
+  ctx.fillStyle = "rgba(255,255,255,0.68)";
+  ctx.font = "800 20px Arial";
+  drawCanvasWrappedText(ctx, detail, x + 26, y + h - 20, w - 52, 24, 1);
+};
+
+function emxDrawCanvasRankScale(ctx, score) {
+  const ranks = emxGetRankScale();
+  const startX = 330;
+  const y = 286;
+  const width = 115;
+  const gap = 10;
+
+  ranks.forEach((rank, index) => {
+    const x = startX + index * (width + gap);
+    const active = score >= rank.min && score <= rank.max;
+
+    ctx.save();
+    ctx.strokeStyle = active ? "rgba(57,255,20,0.95)" : "rgba(255,255,255,0.18)";
+    ctx.lineWidth = active ? 3 : 2;
+    ctx.fillStyle = active ? "rgba(57,255,20,0.16)" : "rgba(255,255,255,0.05)";
+    roundedCanvasRect(ctx, x, y, width, 42, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = active ? "#39ff14" : "rgba(255,255,255,0.72)";
+    ctx.font = "900 18px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(rank.grade + " " + rank.min + "+", x + width / 2, y + 27);
+    ctx.restore();
+  });
+}
+
+const emxRankAdvisorBaseCanvas = buildReportCanvasSafe;
+buildReportCanvasSafe = async function () {
+  const canvas = await emxRankAdvisorBaseCanvas();
+  const ctx = canvas.getContext("2d");
+
+  if (ctx) {
+    emxDrawCanvasRankScale(ctx, calculateFpsScore());
+  }
+
+  return canvas;
+};
+
+function emxBindBuildAdvisorControls() {
+  if (window.emxBuildAdvisorBound) return;
+  window.emxBuildAdvisorBound = true;
+
+  emxApplyBuildPreferences();
+
+  const controls = emxGetPreferenceControls();
+  [controls.cpu, controls.gpu].filter(Boolean).forEach((control) => {
+    control.addEventListener("change", () => {
+      emxSaveBuildPreferences();
+      renderAll();
+      renderPerformanceReport();
+    });
+  });
+}
+
+emxBindBuildAdvisorControls();
+emxRenderRankScale();

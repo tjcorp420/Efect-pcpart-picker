@@ -24,7 +24,7 @@
 
   <title>EMX PC Builder</title>
 
-  <link rel="stylesheet" href="style.css?v=20260501-copy-filter-fix" />
+  <link rel="stylesheet" href="style.css?v=20260501-rank-advisor" />
 </head>
 
 <body class="emx-auth-locked">
@@ -178,6 +178,27 @@
             <p class="panel-label">COMPATIBILITY CHECK</p>
             <h3>Build Warnings</h3>
           </div>
+        </div>
+
+        <div class="compat-target-grid" aria-label="Build direction">
+          <label>
+            <span>CPU Platform</span>
+            <select id="preferredCpuPlatform">
+              <option value="auto">Auto Detect</option>
+              <option value="intel">Intel Build</option>
+              <option value="amd">AMD Ryzen Build</option>
+            </select>
+          </label>
+
+          <label>
+            <span>GPU Family</span>
+            <select id="preferredGpuFamily">
+              <option value="auto">Auto Detect</option>
+              <option value="nvidia">NVIDIA / GeForce</option>
+              <option value="amd">AMD Radeon</option>
+              <option value="intel">Intel Arc</option>
+            </select>
+          </label>
         </div>
 
         <div id="warningsList" class="warnings-list">
@@ -370,6 +391,8 @@
         </div>
       </div>
 
+      <div id="reportRankScale" class="report-rank-scale"></div>
+
       <div class="report-grid">
         <div class="report-stat">
           <span>Total Price</span>
@@ -468,7 +491,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=20260501-copy-filter-fix"></script>
-<script type="module" src="auth.js?v=20260501-copy-filter-fix"></script>
+  <script src="script.js?v=20260501-rank-advisor"></script>
+<script type="module" src="auth.js?v=20260501-rank-advisor"></script>
 </body>
 </html>
