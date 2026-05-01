@@ -62,6 +62,10 @@ const reportGamesList = document.getElementById("reportGamesList");
 const reportNotesList = document.getElementById("reportNotesList");
 const reportPeripheralsList = document.getElementById("reportPeripheralsList");
 const reportUpgradeList = document.getElementById("reportUpgradeList");
+const budgetProgressFill = document.getElementById("budgetProgressFill");
+const budgetProgressText = document.getElementById("budgetProgressText");
+const reportPartsList = document.getElementById("reportPartsList");
+const reportTierBadge = document.getElementById("reportTierBadge");
 
 const manualCopyModal = document.getElementById("manualCopyModal");
 const manualCopyText = document.getElementById("manualCopyText");
@@ -3622,6 +3626,274 @@ function roundedCanvasRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+/* =========================================================
+   23. PRODUCTION UX FINALIZATION
+========================================================= */
+
+function emxSafeText(value, fallback = "Not listed") {
+  const text = String(value ?? "").trim();
+  if (!text || text === "undefined" || text === "NaN") return fallback;
+  return text;
+}
+
+function emxSafeNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function emxGetPartSearchUrl(part) {
+  try {
+    const name = emxSafeText(part?.name, "");
+    if (!name) return "https://pcpartpicker.com/products/";
+    return "https://www.amazon.com/s?k=" + encodeURIComponent(name);
+  } catch (error) {
+    console.error("EMX link generation failed:", error);
+    return "https://pcpartpicker.com/products/";
+  }
+}
+
+function emxPartLinkHtml(part, label = "") {
+  if (!part) return `<span class="muted-link">${escapeHtml(label || "Not selected")}</span>`;
+
+  const href = part.link || emxGetPartSearchUrl(part);
+  return `
+    <a class="report-part-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">
+      ${escapeHtml(emxSafeText(part.name, label || "PC part"))}
+    </a>
+  `;
+}
+
+function getPerformanceTierTag() {
+  const score = calculateFpsScore();
+  const gpu = getSelectedPart("gpu");
+  const vram = emxGetVram(gpu);
+
+  if (score >= 92 && vram >= 16) return "4K Enthusiast";
+  if (score >= 82) return "1440p High-End";
+  if (score >= 68) return "1080p Competitive";
+  if (score > 0) return "Entry Gaming";
+  return "Build Incomplete";
+}
+
+function updateBudgetTracker() {
+  if (!budgetProgressFill || !budgetProgressText) return;
+
+  const total = calculateTotalPrice();
+  const budget = Math.max(0, emxSafeNumber(budgetInput?.value, 0));
+  const percent = budget > 0 ? Math.min(140, Math.round((total / budget) * 100)) : 0;
+  const visualPercent = Math.min(100, percent);
+
+  budgetProgressFill.style.width = visualPercent + "%";
+  budgetProgressFill.classList.toggle("over-budget", budget > 0 && total > budget);
+  budgetProgressFill.classList.toggle("near-budget", budget > 0 && total <= budget && percent >= 85);
+  budgetProgressText.textContent = formatMoney(total) + " / " + (budget > 0 ? formatMoney(budget) : "No budget");
+}
+
+const emxOriginalRenderSummaryProd = renderSummary;
+renderSummary = function () {
+  emxOriginalRenderSummaryProd();
+  updateBudgetTracker();
+};
+
+const emxOriginalGetCompatibilityWarningsProd = getCompatibilityWarnings;
+getCompatibilityWarnings = function () {
+  const warnings = emxOriginalGetCompatibilityWarningsProd();
+  const cpu = getSelectedPart("cpu");
+  const gpu = getSelectedPart("gpu");
+  const motherboard = getSelectedPart("motherboard");
+  const ram = getSelectedPart("ram");
+  const psu = getSelectedPart("psu");
+  const cooler = getSelectedPart("cooler");
+  const wattage = calculateWattage();
+
+  function hasWarning(issueType) {
+    return warnings.some((warning) => warning.issueType === issueType);
+  }
+
+  if (cpu && motherboard && cpu.socket && motherboard.socket && cpu.socket !== motherboard.socket && !hasWarning("socket")) {
+    warnings.push({
+      type: "bad",
+      issueType: "socket",
+      text: "Strict socket mismatch: " + cpu.name + " uses " + cpu.socket + ", but " + motherboard.name + " is " + motherboard.socket + "."
+    });
+  }
+
+  if (ram && motherboard && ram.ramType && motherboard.ramType && ram.ramType !== motherboard.ramType && !hasWarning("ram")) {
+    warnings.push({
+      type: "bad",
+      issueType: "ram",
+      text: "Strict RAM mismatch: " + ram.name + " is " + ram.ramType + ", but motherboard requires " + motherboard.ramType + "."
+    });
+  }
+
+  if (gpu && psu) {
+    const gpuText = emxPartText(gpu);
+    const minimumPsu =
+      gpuText.includes("4090") || gpuText.includes("5090") ? 1000 :
+      gpuText.includes("4080") || gpuText.includes("5080") || gpuText.includes("7900 xtx") ? 850 :
+      gpuText.includes("4070") || gpuText.includes("5070") || gpuText.includes("7900 xt") ? 750 :
+      wattage + 150;
+
+    if (emxSafeNumber(psu.capacity) < minimumPsu && !hasWarning("strict-psu")) {
+      warnings.push({
+        type: "bad",
+        issueType: "strict-psu",
+        text: "Strict PSU warning: " + gpu.name + " should use about " + minimumPsu + "W or stronger. Selected PSU is " + psu.capacity + "W."
+      });
+    }
+  }
+
+  if (cpu && cooler && emxSafeNumber(cooler.maxCpuWattage) < emxSafeNumber(cpu.wattage) && !hasWarning("strict-cooling")) {
+    warnings.push({
+      type: "bad",
+      issueType: "strict-cooling",
+      text: "Strict cooling warning: cooler thermal rating is below selected CPU wattage."
+    });
+  }
+
+  return warnings.filter((warning, index, arr) => {
+    const key = warning.issueType + "|" + warning.text;
+    return arr.findIndex((item) => item.issueType + "|" + item.text === key) === index;
+  });
+};
+
+function renderReportPartsList() {
+  if (!reportPartsList) return;
+
+  const categories = Object.keys(build);
+  reportPartsList.innerHTML = categories
+    .map((category) => {
+      const part = getSelectedPart(category);
+      const meta = part
+        ? [
+            formatMoney(emxSafeNumber(part.price)),
+            part.live ? emxSafeText(part.source, "Live store") : "Curated",
+            "Score " + emxSafeNumber(part.score)
+          ].join(" - ")
+        : "Not selected";
+
+      return `
+        <div class="report-part-row">
+          <span>${escapeHtml(categoryLabels[category])}</span>
+          <strong>${emxPartLinkHtml(part, categoryLabels[category])}</strong>
+          <em>${escapeHtml(meta)}</em>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+const emxOriginalRenderPerformanceReportProd = renderPerformanceReport;
+renderPerformanceReport = function () {
+  emxOriginalRenderPerformanceReportProd();
+
+  if (reportTierBadge) {
+    reportTierBadge.textContent = getPerformanceTierTag();
+  }
+
+  renderReportPartsList();
+};
+
+function emxClipboardSvg() {
+  return `
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M9 4.5h6a2 2 0 0 1 2 2V7h1.5A2.5 2.5 0 0 1 21 9.5v9A2.5 2.5 0 0 1 18.5 21h-13A2.5 2.5 0 0 1 3 18.5v-9A2.5 2.5 0 0 1 5.5 7H7v-.5a2 2 0 0 1 2-2Zm0 2V8h6V6.5H9Zm-3.5 3v9h13v-9H17v1A1.5 1.5 0 0 1 15.5 12h-7A1.5 1.5 0 0 1 7 10.5v-1H5.5Z"/>
+    </svg>
+  `;
+}
+
+function showGlassToast(message, type = "good") {
+  const toast = document.createElement("div");
+  toast.className = "glass-toast " + type;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add("visible");
+  });
+
+  setTimeout(() => {
+    toast.classList.remove("visible");
+    setTimeout(() => toast.remove(), 350);
+  }, 3000);
+}
+
+async function copyTextSafe(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (error) {
+    console.error("EMX clipboard writeText failed:", error);
+    return false;
+  }
+}
+
+function showShareButton(text) {
+  const terminal = document.querySelector(".emx-export-terminal");
+
+  if (!terminal) {
+    console.error("EMX export panel not found.");
+    showGlassToast("Export panel not found.", "bad");
+    return;
+  }
+
+  const oldActions = document.getElementById("copyOverlayActions");
+  if (oldActions) oldActions.remove();
+
+  const actions = document.createElement("div");
+  actions.id = "copyOverlayActions";
+  actions.className = "emx-terminal-actions";
+  actions.innerHTML = `
+    <button id="copyReportOverlayBtn" class="icon-action primary" type="button">
+      ${emxClipboardSvg()}
+      <span>COPY REPORT</span>
+    </button>
+    <button id="downloadReportOverlayBtn" type="button">DOWNLOAD TXT</button>
+    <button id="saveReportImageOverlayBtn" type="button">SAVE IMAGE</button>
+    <button id="manualCopyOverlayBtn" type="button">MANUAL COPY</button>
+    <button id="closeExportOverlayBtn" type="button">DONE</button>
+  `;
+
+  terminal.appendChild(actions);
+
+  const copyBtn = document.getElementById("copyReportOverlayBtn");
+  const downloadBtn = document.getElementById("downloadReportOverlayBtn");
+  const imageBtn = document.getElementById("saveReportImageOverlayBtn");
+  const manualBtn = document.getElementById("manualCopyOverlayBtn");
+  const closeBtn = document.getElementById("closeExportOverlayBtn");
+
+  if (copyBtn) {
+    copyBtn.addEventListener("click", async () => {
+      const copied = await copyTextSafe(text);
+
+      if (copied) {
+        copyBtn.classList.add("success");
+        copyBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9.2 16.6 4.9 12.3l1.8-1.8 2.5 2.5 8.1-8.1 1.8 1.8-9.9 9.9Z"/>
+          </svg>
+          <span>COPIED</span>
+        `;
+        showGlassToast("Report Copied to Clipboard!", "good");
+      } else {
+        showGlassToast("Clipboard blocked. Opening manual copy.", "warn");
+        hideCopyOverlay();
+        openManualCopyModal(text);
+      }
+    });
+  }
+
+  if (downloadBtn) downloadBtn.addEventListener("click", () => downloadReportText(text));
+  if (imageBtn) imageBtn.addEventListener("click", () => downloadReportImage());
+  if (manualBtn) {
+    manualBtn.addEventListener("click", () => {
+      hideCopyOverlay();
+      openManualCopyModal(text);
+    });
+  }
+  if (closeBtn) closeBtn.addEventListener("click", hideCopyOverlay);
+}
+
 function getResolutionTarget(score) {
   if (score >= 92) return "1440p High / 240Hz esports";
   if (score >= 80) return "1440p Medium-High / 1080p Ultra";
@@ -5256,3 +5528,318 @@ function selectLivePart(partId) {
 
   showToast(normalizedPart.name + " added to your build.", "good");
 }
+
+/* =========================================================
+   25. FINAL PRODUCTION OVERRIDES
+   Keep this section last so the production-safe report,
+   clipboard, link, and toast behavior wins over older code.
+========================================================= */
+
+function emxFinalClipboardSvg() {
+  return `
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M9 4.5h6a2 2 0 0 1 2 2V7h1.5A2.5 2.5 0 0 1 21 9.5v9A2.5 2.5 0 0 1 18.5 21h-13A2.5 2.5 0 0 1 3 18.5v-9A2.5 2.5 0 0 1 5.5 7H7v-.5a2 2 0 0 1 2-2Zm0 2V8h6V6.5H9Zm-3.5 3v9h13v-9H17v1A1.5 1.5 0 0 1 15.5 12h-7A1.5 1.5 0 0 1 7 10.5v-1H5.5Z"/>
+    </svg>
+  `;
+}
+
+function emxFinalCheckSvg() {
+  return `
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M9.2 16.6 4.9 12.3l1.8-1.8 2.5 2.5 8.1-8.1 1.8 1.8-9.9 9.9Z"/>
+    </svg>
+  `;
+}
+
+function emxFinalSafeText(value, fallback = "Not listed") {
+  const text = String(value ?? "").trim();
+  if (!text || text === "undefined" || text === "NaN") return fallback;
+  return text;
+}
+
+function emxFinalSafeNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function emxFinalPartSearchUrl(part) {
+  try {
+    const name = emxFinalSafeText(part?.name, "");
+    if (!name) return "https://pcpartpicker.com/products/";
+    return "https://www.amazon.com/s?k=" + encodeURIComponent(name);
+  } catch (error) {
+    console.error("EMX link generation failed:", error);
+    return "https://pcpartpicker.com/products/";
+  }
+}
+
+function emxFinalPartLinkHtml(part, label = "") {
+  if (!part) {
+    return `<span class="muted-link">${escapeHtml(label || "Not selected")}</span>`;
+  }
+
+  const href = emxFinalSafeText(part.link, "") || emxFinalPartSearchUrl(part);
+
+  return `
+    <a class="report-part-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">
+      ${escapeHtml(emxFinalSafeText(part.name, label || "PC part"))}
+    </a>
+  `;
+}
+
+function emxFinalPartTextLine(category, part) {
+  const label = emxFinalSafeText(categoryLabels[category], category);
+
+  if (!part) {
+    return label + ": Not selected";
+  }
+
+  const specs = part.specs || {};
+  const extras = [];
+
+  if (category === "cpu") extras.push(emxFinalSafeText(specs.Cores, "Cores N/A"), emxFinalSafeText(part.socket, "Socket N/A"), emxFinalSafeNumber(part.wattage) + "W");
+  if (category === "gpu") extras.push(emxFinalSafeText(part.vram || specs.VRAM, "VRAM N/A"), emxFinalSafeNumber(part.wattage) + "W", emxFinalSafeNumber(part.length) + "mm");
+  if (category === "motherboard") extras.push(emxFinalSafeText(part.socket, "Socket N/A"), emxFinalSafeText(part.ramType, "RAM N/A"), emxFinalSafeText(part.formFactor, "Form factor N/A"));
+  if (category === "ram") extras.push(emxFinalSafeText(specs.Capacity, "Capacity N/A"), emxFinalSafeText(part.ramType || specs.Type, "Type N/A"), emxFinalSafeText(specs.Speed, "Speed N/A"));
+  if (category === "storage") extras.push(emxFinalSafeText(specs.Capacity, "Capacity N/A"), emxFinalSafeText(specs.Type, "Type N/A"), emxFinalSafeText(specs.Speed, "Speed N/A"));
+  if (category === "psu") extras.push(emxFinalSafeNumber(part.capacity) + "W", emxFinalSafeText(specs.Rating, "Rating N/A"), emxFinalSafeText(specs.Modular, "Modular N/A"));
+  if (category === "case") extras.push(emxFinalSafeText(part.formFactor, "Form factor N/A"), "GPU " + emxFinalSafeNumber(part.maxGpuLength) + "mm", emxFinalSafeText(specs.Airflow, "Airflow N/A"));
+  if (category === "cooler") extras.push(emxFinalSafeText(specs.Type, "Cooler type N/A"), "CPU limit " + emxFinalSafeNumber(part.maxCpuWattage) + "W");
+
+  if (part.live) {
+    extras.push(emxFinalSafeText(part.source, "Live store"), "Trust " + emxFinalSafeNumber(part.trustScore) + "/100");
+  }
+
+  return [
+    label + ": " + emxFinalSafeText(part.name, "Unnamed part"),
+    extras.filter(Boolean).join(" | "),
+    formatMoney(emxFinalSafeNumber(part.price)),
+    "Link: " + (emxFinalSafeText(part.link, "") || emxFinalPartSearchUrl(part))
+  ]
+    .filter(Boolean)
+    .join(" | ");
+}
+
+function emxFinalPerformanceTierTag() {
+  const score = emxFinalSafeNumber(calculateFpsScore());
+  const gpu = getSelectedPart("gpu");
+  const vram = emxFinalSafeNumber(emxGetVram(gpu));
+
+  if (score >= 92 && vram >= 16) return "4K Enthusiast";
+  if (score >= 82) return "1440p High-End";
+  if (score >= 68) return "1080p Competitive";
+  if (score > 0) return "Entry Gaming";
+  return "Build Incomplete";
+}
+
+function renderReportPartsList() {
+  if (!reportPartsList) return;
+
+  reportPartsList.innerHTML = Object.keys(build)
+    .map((category) => {
+      const part = getSelectedPart(category);
+      const meta = part
+        ? [
+            formatMoney(emxFinalSafeNumber(part.price)),
+            part.live ? emxFinalSafeText(part.source, "Live store") : "Curated",
+            "Score " + emxFinalSafeNumber(part.score)
+          ].join(" - ")
+        : "Not selected";
+
+      return `
+        <div class="report-part-row">
+          <span>${escapeHtml(emxFinalSafeText(categoryLabels[category], category))}</span>
+          <strong>${emxFinalPartLinkHtml(part, categoryLabels[category])}</strong>
+          <em>${escapeHtml(meta)}</em>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+const emxFinalRenderPerformanceReport = renderPerformanceReport;
+renderPerformanceReport = function () {
+  emxFinalRenderPerformanceReport();
+
+  if (reportTierBadge) {
+    reportTierBadge.textContent = emxFinalPerformanceTierTag();
+  }
+
+  renderReportPartsList();
+};
+
+function getReportText() {
+  const model = getBuildPerformanceModel();
+  const score = emxFinalSafeNumber(model.score);
+  const tier = getPerformanceTier(score);
+  const lines = [];
+
+  const selected = {
+    cpu: getSelectedPart("cpu"),
+    gpu: getSelectedPart("gpu"),
+    motherboard: getSelectedPart("motherboard"),
+    ram: getSelectedPart("ram"),
+    storage: getSelectedPart("storage"),
+    psu: getSelectedPart("psu"),
+    case: getSelectedPart("case"),
+    cooler: getSelectedPart("cooler")
+  };
+
+  lines.push("EMX PERFORMANCE REPORT");
+  lines.push("Generated by EMX PC Builder");
+  lines.push("Performance Tier: " + emxFinalPerformanceTierTag());
+  lines.push("Live-data confidence: " + Math.round(emxFinalSafeNumber(model.confidence)) + "%");
+  lines.push("=================================================");
+  lines.push("");
+  lines.push("OVERALL");
+  lines.push("Rating: " + emxFinalSafeText(tier.grade, "N/A") + " - " + emxFinalSafeText(tier.label, "Build Analysis"));
+  lines.push("Summary: " + emxFinalSafeText(tier.text, "Select more parts for a stronger estimate."));
+  lines.push("FPS Score: " + score + "/100");
+  lines.push("Build Status: " + emxFinalSafeText(getBuildStatus(), "Needs Review"));
+  lines.push("Resolution Target: " + emxFinalSafeText(getResolutionTarget(score), "Select GPU and CPU"));
+  lines.push("Estimated Wattage: " + emxFinalSafeNumber(calculateWattage()) + "W");
+  lines.push("Total Price: " + formatMoney(emxFinalSafeNumber(calculateTotalPrice())));
+  lines.push("Bottleneck Read: " + emxFinalSafeText(model.bottleneck, "Needs CPU and GPU"));
+  lines.push("");
+  lines.push("SELECTED PARTS WITH SAFE SEARCH LINKS");
+
+  Object.keys(selected).forEach((category) => {
+    lines.push(emxFinalPartTextLine(category, selected[category]));
+  });
+
+  lines.push("");
+  lines.push("GAME ESTIMATES");
+  estimateGameFps().forEach((game) => {
+    lines.push(
+      emxFinalSafeText(game.game, "Game") +
+        ": " +
+        emxFinalSafeNumber(game.fps) +
+        " FPS - " +
+        emxFinalSafeText(game.note, "Estimate")
+    );
+  });
+
+  lines.push("");
+  lines.push("BUILD ANALYSIS");
+  getReportNotes().forEach((note) => {
+    lines.push("- " + emxFinalSafeText(note.text, "Analysis pending"));
+  });
+
+  lines.push("");
+  lines.push("COMPATIBILITY WARNINGS");
+  const warnings = getCompatibilityWarnings();
+  if (warnings.length === 0) {
+    lines.push("- No blocking compatibility warnings found.");
+  } else {
+    warnings.forEach((warning) => {
+      lines.push("- " + emxFinalSafeText(warning.text, "Compatibility warning"));
+    });
+  }
+
+  lines.push("");
+  lines.push("UPGRADE PRIORITY");
+  getUpgradeRecommendations().forEach((item, index) => {
+    lines.push((index + 1) + ". " + emxFinalSafeText(item.title, "Upgrade") + ": " + emxFinalSafeText(item.text, "Review selected parts."));
+  });
+
+  lines.push("");
+  lines.push("SUGGESTED SETUP");
+  getPeripheralSuggestions().forEach((item) => {
+    lines.push("- " + emxFinalSafeText(item.title, "Peripheral") + ": " + emxFinalSafeText(item.text, "Recommended accessory."));
+  });
+
+  lines.push("");
+  lines.push("IMPORTANT: FPS is an estimate based on selected part tiers, balance, RAM, power/cooling headroom, and compatibility. Real FPS depends on game updates, settings, drivers, maps, servers, and background apps.");
+
+  return lines.join("\n").replace(/\b(undefined|NaN)\b/g, "N/A");
+}
+
+async function copyTextSafe(text) {
+  try {
+    await navigator.clipboard.writeText(String(text || ""));
+    return true;
+  } catch (error) {
+    console.error("EMX clipboard writeText failed:", error);
+    return false;
+  }
+}
+
+function showGlassToast(message, type = "good") {
+  const toast = document.createElement("div");
+  toast.className = "glass-toast " + type;
+  toast.textContent = emxFinalSafeText(message, "Done");
+  document.body.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add("visible");
+  });
+
+  setTimeout(() => {
+    toast.classList.remove("visible");
+    setTimeout(() => toast.remove(), 350);
+  }, 3000);
+}
+
+function showShareButton(text) {
+  const terminal = document.querySelector(".emx-export-terminal");
+
+  if (!terminal) {
+    console.error("EMX export panel not found.");
+    showGlassToast("Export panel not found.", "bad");
+    return;
+  }
+
+  const oldActions = document.getElementById("copyOverlayActions");
+  if (oldActions) oldActions.remove();
+
+  const actions = document.createElement("div");
+  actions.id = "copyOverlayActions";
+  actions.className = "emx-terminal-actions";
+  actions.innerHTML = `
+    <button id="copyReportOverlayBtn" class="icon-action primary" type="button">
+      ${emxFinalClipboardSvg()}
+      <span>COPY REPORT</span>
+    </button>
+    <button id="downloadReportOverlayBtn" type="button">DOWNLOAD TXT</button>
+    <button id="saveReportImageOverlayBtn" type="button">SAVE IMAGE</button>
+    <button id="manualCopyOverlayBtn" type="button">MANUAL COPY</button>
+    <button id="closeExportOverlayBtn" type="button">DONE</button>
+  `;
+
+  terminal.appendChild(actions);
+
+  const copyBtn = document.getElementById("copyReportOverlayBtn");
+  const downloadBtn = document.getElementById("downloadReportOverlayBtn");
+  const imageBtn = document.getElementById("saveReportImageOverlayBtn");
+  const manualBtn = document.getElementById("manualCopyOverlayBtn");
+  const closeBtn = document.getElementById("closeExportOverlayBtn");
+
+  if (copyBtn) {
+    copyBtn.addEventListener("click", async () => {
+      const copied = await copyTextSafe(text);
+
+      if (copied) {
+        copyBtn.classList.add("success");
+        copyBtn.innerHTML = `${emxFinalCheckSvg()}<span>COPIED</span>`;
+        showGlassToast("Report Copied to Clipboard!", "good");
+      } else {
+        showGlassToast("Clipboard blocked. Opening manual copy.", "warn");
+        hideCopyOverlay();
+        openManualCopyModal(text);
+      }
+    });
+  }
+
+  if (downloadBtn) downloadBtn.addEventListener("click", () => downloadReportText(text));
+  if (imageBtn) imageBtn.addEventListener("click", () => downloadReportImage());
+  if (manualBtn) {
+    manualBtn.addEventListener("click", () => {
+      hideCopyOverlay();
+      openManualCopyModal(text);
+    });
+  }
+  if (closeBtn) closeBtn.addEventListener("click", hideCopyOverlay);
+}
+
+updateBudgetTracker();
+renderReportPartsList();

@@ -24,7 +24,7 @@
 
   <title>EMX PC Builder</title>
 
-  <link rel="stylesheet" href="style.css?v=20260501-shell-ui" />
+  <link rel="stylesheet" href="style.css?v=20260501-prod-report" />
 </head>
 
 <body class="emx-auth-locked">
@@ -115,6 +115,16 @@
         <div class="summary-card purple">
           <span>Status</span>
           <strong id="statusText">Empty</strong>
+        </div>
+      </section>
+
+      <section class="budget-progress-panel" aria-label="Budget progress">
+        <div class="budget-progress-top">
+          <span>Budget Tracker</span>
+          <strong id="budgetProgressText">$0 / $1,500</strong>
+        </div>
+        <div class="budget-progress-track">
+          <div id="budgetProgressFill" class="budget-progress-fill"></div>
         </div>
       </section>
 
@@ -347,6 +357,7 @@
       <div class="report-header">
         <p class="panel-label">EMX PERFORMANCE REPORT</p>
         <h2 id="reportTitleText">Build Analysis</h2>
+        <div id="reportTierBadge" class="report-tier-badge">Select Parts</div>
         <p id="reportSubtitleText">
           Select parts to generate a full performance breakdown.
         </p>
@@ -379,6 +390,15 @@
           <span>Status</span>
           <strong id="reportStatusText">Empty</strong>
         </div>
+      </div>
+
+      <div class="report-section">
+        <div class="report-section-title">
+          <span>Selected Components</span>
+          <em>Safe shopping links</em>
+        </div>
+
+        <div id="reportPartsList" class="report-parts-list"></div>
       </div>
 
       <div class="report-section">
@@ -448,7 +468,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=20260501-shell-ui"></script>
-<script type="module" src="auth.js?v=20260501-shell-ui"></script>
+  <script src="script.js?v=20260501-prod-report"></script>
+<script type="module" src="auth.js?v=20260501-prod-report"></script>
 </body>
 </html>
