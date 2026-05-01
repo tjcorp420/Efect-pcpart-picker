@@ -3836,3 +3836,79 @@ button,
     grid-column: auto;
   }
 }
+
+/* =========================================================
+   29. COPY REPORT OVERLAY CONTAINMENT FIX
+========================================================= */
+.emx-copy-overlay {
+  padding: 18px;
+}
+
+.emx-export-terminal {
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  isolation: isolate;
+}
+
+.emx-terminal-logo,
+.emx-export-terminal > img {
+  display: block !important;
+  width: 82px !important;
+  height: 82px !important;
+  max-width: 82px !important;
+  max-height: 82px !important;
+  margin: 0 auto 12px !important;
+  object-fit: contain !important;
+  border-radius: 8px;
+}
+
+.emx-terminal-logo-safe {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 14px;
+  border: 1px solid rgba(57, 255, 20, 0.5);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(57, 255, 20, 0.34), transparent 34%),
+    linear-gradient(135deg, rgba(57, 255, 20, 0.18), rgba(176, 38, 255, 0.22)),
+    rgba(5, 9, 13, 0.92);
+  box-shadow:
+    0 0 24px rgba(57, 255, 20, 0.28),
+    0 0 24px rgba(176, 38, 255, 0.18) inset;
+}
+
+.emx-terminal-logo-safe span {
+  color: #39ff14;
+  font-size: 1.2rem;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-shadow:
+    0 0 12px rgba(57, 255, 20, 0.8),
+    0 0 18px rgba(176, 38, 255, 0.55);
+}
+
+.emx-terminal-label,
+.emx-terminal-status,
+.emx-terminal-progress,
+.emx-terminal-percent,
+.emx-terminal-lines,
+.emx-terminal-actions {
+  position: relative;
+  z-index: 2;
+}
+
+@media (max-width: 520px) {
+  .emx-copy-overlay {
+    align-items: flex-start !important;
+    padding-top: 18px;
+  }
+
+  .emx-export-terminal {
+    width: min(100%, 360px);
+  }
+}

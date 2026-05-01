@@ -251,6 +251,47 @@ function getBrandFromTitle(title, category) {
   return found ? found[0] : "Unknown";
 }
 
+function productMatchesBrandFilter(product, category, brand) {
+  const wanted = cleanString(brand);
+  if (!wanted || wanted === "all") return true;
+
+  const text = normalizeQuery([
+    product.name,
+    product.title,
+    product.brand,
+    product.snippet,
+    product.generation,
+    product.tier
+  ].filter(Boolean).join(" "));
+
+  if (normalizeQuery(product.brand) === normalizeQuery(wanted)) return true;
+
+  const knownBrand = getBrandsForCategory(category).find(([name]) => {
+    return name.toLowerCase() === wanted.toLowerCase();
+  });
+
+  const aliases = knownBrand ? knownBrand[1] : [wanted];
+  if (aliases.some((alias) => textHasWord(text, normalizeQuery(alias)))) return true;
+
+  if (category === "gpu" && wanted.toLowerCase() === "nvidia") {
+    return /\b(rtx|gtx|geforce)\b/.test(text);
+  }
+
+  if (category === "gpu" && wanted.toLowerCase() === "amd") {
+    return /\b(radeon|rx\s?[679]\d{3})\b/.test(text);
+  }
+
+  if (category === "cpu" && wanted.toLowerCase() === "amd") {
+    return /\b(ryzen|x3d)\b/.test(text);
+  }
+
+  if (category === "cpu" && wanted.toLowerCase() === "intel") {
+    return /\b(intel|core\s?(ultra|i[3579])|i[3579][-\s]?\d{4,5})\b/.test(text);
+  }
+
+  return false;
+}
+
 function getSmartMinimumPrice(category, query) {
   const q = normalizeQuery(query);
 
@@ -292,10 +333,17 @@ function getSmartMaximumPrice(category, query) {
 }
 
 function getSourceText(product) {
-  return normalizeQuery([
+  const explicitSource = [
     product.source,
     product.seller,
-    product.merchant,
+    product.merchant
+  ].filter(Boolean).join(" ");
+
+  if (explicitSource) {
+    return normalizeQuery(explicitSource);
+  }
+
+  return normalizeQuery([
     product.link,
     product.product_link
   ].filter(Boolean).join(" "));
@@ -307,6 +355,19 @@ function getTrustedRetailer(product) {
   return TRUSTED_RETAILERS.find(([, aliases]) => {
     return aliases.some((alias) => sourceText.includes(normalizeQuery(alias)));
   });
+}
+
+function retailerMatchesFilter(product, retailer) {
+  const wanted = cleanString(retailer);
+  if (!wanted || wanted === "all" || wanted === "trusted") return true;
+
+  const sourceText = getSourceText(product);
+  const knownRetailer = TRUSTED_RETAILERS.find(([name]) => {
+    return name.toLowerCase() === wanted.toLowerCase();
+  });
+
+  const aliases = knownRetailer ? knownRetailer[1] : [wanted];
+  return aliases.some((alias) => sourceText.includes(normalizeQuery(alias)));
 }
 
 function getSourceName(product) {
@@ -652,8 +713,7 @@ function isLikelyBadProduct(product, category, query, filters) {
   const trustScore = getTrustScore(product, category, query);
   if (filters.retailer === "trusted" && trustScore < 62) return true;
   if (filters.retailer !== "all" && filters.retailer !== "trusted") {
-    const source = getSourceName(product).toLowerCase();
-    if (!source.includes(filters.retailer.toLowerCase())) return true;
+    if (!retailerMatchesFilter(product, filters.retailer)) return true;
   }
 
   return trustScore < 40;
@@ -732,7 +792,7 @@ function applyFilters(products, filters) {
   let filtered = [...products];
 
   if (filters.brand && filters.brand !== "all") {
-    filtered = filtered.filter((product) => String(product.brand || "").toLowerCase() === filters.brand.toLowerCase());
+    filtered = filtered.filter((product) => productMatchesBrandFilter(product, product.category, filters.brand));
   }
 
   if (filters.minPrice > 0) filtered = filtered.filter((product) => Number(product.price || 0) >= filters.minPrice);
@@ -814,6 +874,7 @@ module.exports = async function handler(req, res) {
   const queryParts = [
     q,
     brand !== "all" ? brand : "",
+    retailer !== "all" && retailer !== "trusted" ? retailer : "",
     platform !== "all" ? platform : "",
     CATEGORY_QUERY_WORDS[category],
     condition === "new" ? "new" : ""

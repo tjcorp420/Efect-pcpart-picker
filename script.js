@@ -5843,3 +5843,245 @@ function showShareButton(text) {
 
 updateBudgetTracker();
 renderReportPartsList();
+
+/* =========================================================
+   26. FINAL COPY OVERLAY + SEARCH/FILTER HARDENING
+========================================================= */
+
+const emxSearchAliasMap = {
+  cpu: {
+    amd: ["amd", "ryzen", "x3d"],
+    ryzen: ["amd", "ryzen", "x3d"],
+    intel: ["intel", "core i3", "core i5", "core i7", "core i9", "core ultra"]
+  },
+  gpu: {
+    nvidia: ["nvidia", "geforce", "rtx", "gtx"],
+    geforce: ["nvidia", "geforce", "rtx", "gtx"],
+    rtx: ["nvidia", "geforce", "rtx"],
+    amd: ["amd", "radeon", "rx"],
+    radeon: ["amd", "radeon", "rx"],
+    intel: ["intel", "arc"]
+  }
+};
+
+const emxRetailerAliasMap = {
+  "amazon": ["amazon", "amazon.com"],
+  "newegg": ["newegg", "newegg.com"],
+  "best buy": ["best buy", "bestbuy", "bestbuy.com"],
+  "b&h": ["b&h", "b and h", "bhphotovideo", "bhphoto"],
+  "micro center": ["micro center", "microcenter", "microcenter.com"],
+  "walmart": ["walmart", "walmart.com"],
+  "adorama": ["adorama", "adorama.com"],
+  "antonline": ["antonline", "antonline.com"],
+  "dell": ["dell", "dell.com"],
+  "hp": ["hp", "hp.com"],
+  "lenovo": ["lenovo", "lenovo.com"],
+  "corsair": ["corsair", "corsair.com"],
+  "asus": ["asus", "asus.com", "rog", "tuf"],
+  "msi": ["msi", "msi.com"],
+  "nvidia": ["nvidia", "nvidia.com"],
+  "amd": ["amd", "amd.com"],
+  "intel": ["intel", "intel.com"],
+  "samsung": ["samsung", "samsung.com"],
+  "western digital": ["western digital", "westerndigital", "wd"],
+  "crucial": ["crucial", "crucial.com"]
+};
+
+function emxNormalizeFilterText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9+&.\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function emxTextMatchesAnyAlias(text, aliases) {
+  const haystack = " " + emxNormalizeFilterText(text) + " ";
+
+  return aliases.some((alias) => {
+    const needle = emxNormalizeFilterText(alias);
+    return needle && haystack.includes(" " + needle + " ");
+  });
+}
+
+function emxExpandPartSearchQuery(query, category) {
+  const normalized = emxNormalizeFilterText(query);
+
+  if (!normalized) {
+    return emxDefaultLiveQueries[category] || categoryLabels[category] || category || "pc part";
+  }
+
+  if (category === "gpu") {
+    if (["nvidia", "geforce", "rtx"].includes(normalized)) return "NVIDIA GeForce RTX desktop graphics card";
+    if (["amd", "radeon", "rx"].includes(normalized)) return "AMD Radeon RX desktop graphics card";
+    if (normalized === "intel") return "Intel Arc desktop graphics card";
+  }
+
+  if (category === "cpu") {
+    if (["amd", "ryzen"].includes(normalized)) return "AMD Ryzen desktop processor";
+    if (normalized === "intel") return "Intel Core desktop processor";
+  }
+
+  return query;
+}
+
+emxGetLiveSearchQuery = function (queryOverride = "") {
+  const rawQuery = queryOverride || (searchInput ? searchInput.value.trim() : "");
+  return emxExpandPartSearchQuery(rawQuery, activeCategory);
+};
+
+function emxPartMatchesBrandAlias(part, brand) {
+  if (!brand || brand === "all") return true;
+
+  const wanted = emxNormalizeFilterText(brand);
+  const text = [
+    part.name,
+    part.brand,
+    part.use,
+    part.tier,
+    part.generation,
+    part.vram,
+    part.source,
+    part.specs ? Object.values(part.specs).join(" ") : ""
+  ].filter(Boolean).join(" ");
+
+  if (emxNormalizeFilterText(part.brand) === wanted) return true;
+
+  const aliases =
+    (emxSearchAliasMap[part.category] && emxSearchAliasMap[part.category][wanted]) ||
+    [brand];
+
+  return emxTextMatchesAnyAlias(text, aliases);
+}
+
+function emxPartMatchesRetailerAlias(part, retailer) {
+  if (!retailer || retailer === "all" || retailer === "trusted") return true;
+
+  const wanted = emxNormalizeFilterText(retailer);
+  const aliases = emxRetailerAliasMap[wanted] || [retailer];
+  const text = [part.source, part.seller, part.link, part.name].filter(Boolean).join(" ");
+
+  return emxTextMatchesAnyAlias(text, aliases);
+}
+
+function emxPartMatchesSearchAlias(part, query) {
+  const normalized = emxNormalizeFilterText(query);
+  if (!normalized) return true;
+
+  const aliases =
+    (emxSearchAliasMap[part.category] && emxSearchAliasMap[part.category][normalized]) ||
+    normalized.split(" ").filter(Boolean);
+
+  const text = emxGetTextForLivePart(part);
+  return aliases.some((alias) => emxNormalizeFilterText(text).includes(emxNormalizeFilterText(alias)));
+}
+
+emxApplyLiveClientFilters = function (products) {
+  const query = searchInput ? searchInput.value.trim() : "";
+  const brand = brandFilter ? brandFilter.value : "all";
+  const retailer = retailerFilter ? retailerFilter.value : "trusted";
+  const platform = platformFilter ? platformFilter.value : "all";
+  const minPrice = minPriceInput ? Number(minPriceInput.value || 0) : 0;
+  const maxPrice = maxPriceInput ? Number(maxPriceInput.value || 0) : 0;
+  const minScore = minScoreInput ? Number(minScoreInput.value || 0) : 0;
+  const minRating = minRatingInput ? Number(minRatingInput.value || 0) : 0;
+  const maxWattage = maxWattageInput ? Number(maxWattageInput.value || 0) : 0;
+  const sort = sortSelect ? sortSelect.value : "recommended";
+
+  let filtered = [...products];
+
+  if (query) filtered = filtered.filter((part) => emxPartMatchesSearchAlias(part, query));
+  if (brand && brand !== "all") filtered = filtered.filter((part) => emxPartMatchesBrandAlias(part, brand));
+  if (retailer && retailer !== "all" && retailer !== "trusted") filtered = filtered.filter((part) => emxPartMatchesRetailerAlias(part, retailer));
+  if (platform && platform !== "all") filtered = filtered.filter((part) => partMatchesPlatform(part, platform));
+
+  if (minPrice > 0) filtered = filtered.filter((part) => Number(part.price || 0) >= minPrice);
+  if (maxPrice > 0) filtered = filtered.filter((part) => Number(part.price || 0) <= maxPrice);
+  if (minScore > 0) filtered = filtered.filter((part) => Number(part.score || 0) >= minScore);
+  if (minRating > 0) filtered = filtered.filter((part) => Number(part.rating || 0) >= minRating);
+  if (maxWattage > 0) filtered = filtered.filter((part) => Number(part.wattage || 0) <= maxWattage);
+
+  if (sort === "priceLow") filtered.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+  if (sort === "priceHigh") filtered.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+  if (sort === "performance") filtered.sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+  if (sort === "rating") filtered.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+  if (sort === "trusted") filtered.sort((a, b) => Number(b.trustScore || 0) - Number(a.trustScore || 0));
+  if (sort === "recommended") {
+    filtered.sort((a, b) => {
+      const scoreA = Number(a.score || 0) + Number(a.shoppingScore || 0) * 0.25 + Number(a.trustScore || 0) * 0.35;
+      const scoreB = Number(b.score || 0) + Number(b.shoppingScore || 0) * 0.25 + Number(b.trustScore || 0) * 0.35;
+      return scoreB - scoreA;
+    });
+  }
+
+  return filtered;
+};
+
+function showCopyOverlay() {
+  if (document.getElementById("copyOverlay")) return;
+
+  const overlay = document.createElement("div");
+  overlay.id = "copyOverlay";
+  overlay.className = "emx-copy-overlay";
+
+  overlay.innerHTML = `
+    <div class="emx-export-terminal">
+      <div class="emx-terminal-logo-safe" aria-label="EMX logo">
+        <span>EMX</span>
+      </div>
+
+      <div class="emx-terminal-label">EMX REPORT EXPORT</div>
+
+      <div id="copyOverlayStatus" class="emx-terminal-status">
+        Preparing build analysis...
+      </div>
+
+      <div class="emx-terminal-progress">
+        <div id="copyOverlayProgress" class="emx-terminal-progress-fill"></div>
+      </div>
+
+      <div id="copyOverlayPercent" class="emx-terminal-percent">0%</div>
+
+      <div class="emx-terminal-lines">
+        <p>Build data: selected parts, prices, wattage</p>
+        <p>Performance: game estimates and bottlenecks</p>
+        <p>Safety: compatibility, power, and cooling checks</p>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+}
+
+let emxFilterRefreshTimer = null;
+function emxRefreshLiveSearchFromFilters() {
+  if (!emxLiveModeActive || emxLiveLoading) return;
+
+  clearTimeout(emxFilterRefreshTimer);
+  emxFilterRefreshTimer = setTimeout(() => {
+    emxRunLiveSearch({ silent: true });
+  }, 420);
+}
+
+if (!window.emxSearchBindingsHardened) {
+  window.emxSearchBindingsHardened = true;
+
+  if (liveSearchBtn) {
+    liveSearchBtn.addEventListener("click", () => emxRunLiveSearch({ silent: false }));
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        emxRunLiveSearch({ silent: false });
+      }
+    });
+  }
+
+  [brandFilter, retailerFilter, conditionFilter, platformFilter, sortSelect, minPriceInput, maxPriceInput, minScoreInput, minRatingInput, maxWattageInput]
+    .filter(Boolean)
+    .forEach((control) => {
+      control.addEventListener("change", emxRefreshLiveSearchFromFilters);
+    });
+}
