@@ -3651,6 +3651,720 @@ function getCoolingText(cpu, cooler) {
 }
 
 /* =========================================================
+   18. EMX PERFORMANCE MODEL V2
+========================================================= */
+
+function emxPartText(part) {
+  if (!part) return "";
+
+  return [
+    part.name,
+    part.brand,
+    part.use,
+    part.tier,
+    part.generation,
+    part.vram,
+    part.ramType,
+    part.specs ? Object.values(part.specs).join(" ") : ""
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function emxClamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function emxExtractGb(text, fallback = 0) {
+  const match = String(text || "").match(/\b(\d{1,3})\s*gb\b/i);
+  return match ? Number(match[1]) : fallback;
+}
+
+function emxGetRamCapacity(ram) {
+  if (!ram) return 0;
+  return Number(ram.capacity || emxExtractGb(emxPartText(ram), 0));
+}
+
+function emxGetVram(gpu) {
+  if (!gpu) return 0;
+  const text = emxPartText(gpu);
+  const direct = emxExtractGb(text, 0);
+
+  if (direct) return direct;
+  if (text.includes("4090")) return 24;
+  if (text.includes("4080") || text.includes("5080") || text.includes("9070") || text.includes("7900 xtx")) return 16;
+  if (text.includes("4070") || text.includes("5070") || text.includes("7700")) return 12;
+  if (text.includes("4060") || text.includes("7600") || text.includes("6600")) return 8;
+
+  return 8;
+}
+
+function emxGetLiveConfidence() {
+  const selected = getSelectedPartsArray().map((item) => item.part);
+  if (selected.length === 0) return 0;
+
+  const liveCount = selected.filter((part) => part.live).length;
+  const trustedCount = selected.filter((part) => Number(part.trustScore || 0) >= 80).length;
+
+  return Math.round(((liveCount * 0.65 + trustedCount * 0.35) / selected.length) * 100);
+}
+
+function getBuildPerformanceModel() {
+  const cpu = getSelectedPart("cpu");
+  const gpu = getSelectedPart("gpu");
+  const motherboard = getSelectedPart("motherboard");
+  const ram = getSelectedPart("ram");
+  const storage = getSelectedPart("storage");
+  const psu = getSelectedPart("psu");
+  const cooler = getSelectedPart("cooler");
+  const pcCase = getSelectedPart("case");
+
+  const selectedCount = getSelectedPartsArray().length;
+  const warnings = getCompatibilityWarnings();
+  const badCount = warnings.filter((warning) => warning.type === "bad").length;
+  const warnCount = warnings.filter((warning) => warning.type === "warn").length;
+  const wattage = calculateWattage();
+  const ramGb = emxGetRamCapacity(ram);
+  const vramGb = emxGetVram(gpu);
+
+  if (!cpu && !gpu && !ram && !storage && !psu && !cooler && !pcCase && !motherboard) {
+    return {
+      score: 0,
+      confidence: 0,
+      cpuScore: 0,
+      gpuScore: 0,
+      ramGb: 0,
+      vramGb: 0,
+      bottleneck: "No parts selected",
+      bottleneckPenalty: 0,
+      powerHeadroom: 0,
+      thermalHeadroom: 0,
+      readinessPenalty: 0,
+      notes: []
+    };
+  }
+
+  const cpuScore = Number(cpu?.score || 0);
+  const gpuScore = Number(gpu?.score || 0);
+  const ramScore = Number(ram?.score || 0);
+  const storageScore = Number(storage?.score || 0);
+  const coolerScore = Number(cooler?.score || 0);
+
+  const cpuGpuGap = cpu && gpu ? Math.abs(cpuScore - gpuScore) : 0;
+  const bottleneckPenalty = cpu && gpu ? emxClamp((cpuGpuGap - 12) * 0.32, 0, 10) : 18;
+  const missingCorePenalty = (!cpu ? 18 : 0) + (!gpu ? 22 : 0) + (!ram ? 8 : 0);
+  const missingSystemPenalty = Math.max(0, 8 - selectedCount) * 1.6;
+  const compatibilityPenalty = badCount * 14 + warnCount * 4;
+
+  let ramModifier = 0;
+  if (ram) {
+    if (ramGb >= 64) ramModifier += 4;
+    else if (ramGb >= 32) ramModifier += 7;
+    else if (ramGb >= 16) ramModifier += 1;
+    else ramModifier -= 8;
+
+    if (String(ram.ramType || "").toUpperCase() === "DDR5") ramModifier += 3;
+  }
+
+  let vramModifier = 0;
+  if (gpu) {
+    if (vramGb >= 16) vramModifier += 4;
+    else if (vramGb >= 12) vramModifier += 2;
+    else if (vramGb < 8) vramModifier -= 8;
+  }
+
+  const powerHeadroom = psu ? Number(psu.capacity || 0) - wattage : 0;
+  let powerModifier = 0;
+  if (psu) {
+    if (powerHeadroom >= 250) powerModifier += 3;
+    else if (powerHeadroom >= 150) powerModifier += 1;
+    else if (powerHeadroom >= 75) powerModifier -= 4;
+    else powerModifier -= 11;
+  }
+
+  const thermalHeadroom = cpu && cooler ? Number(cooler.maxCpuWattage || 0) - Number(cpu.wattage || 0) : 0;
+  let thermalModifier = 0;
+  if (cpu && cooler) {
+    if (thermalHeadroom >= 80) thermalModifier += 2;
+    else if (thermalHeadroom >= 25) thermalModifier += 1;
+    else if (thermalHeadroom >= 0) thermalModifier -= 2;
+    else thermalModifier -= 8;
+  }
+
+  const weighted =
+    (gpu ? gpuScore * 0.54 : 0) +
+    (cpu ? cpuScore * 0.27 : 0) +
+    (ram ? ramScore * 0.09 : 0) +
+    (storage ? storageScore * 0.04 : 0) +
+    (cooler ? coolerScore * 0.03 : 0) +
+    (motherboard ? Number(motherboard.score || 0) * 0.03 : 0);
+
+  const score = Math.round(emxClamp(
+    weighted +
+      ramModifier +
+      vramModifier +
+      powerModifier +
+      thermalModifier -
+      bottleneckPenalty -
+      missingCorePenalty -
+      missingSystemPenalty -
+      compatibilityPenalty,
+    selectedCount > 0 ? 18 : 0,
+    100
+  ));
+
+  let bottleneck = "Balanced core parts";
+  if (!cpu || !gpu) bottleneck = "Needs CPU and GPU for a real FPS estimate";
+  else if (gpuScore - cpuScore >= 18) bottleneck = "CPU-limited in high-FPS games";
+  else if (cpuScore - gpuScore >= 18) bottleneck = "GPU-limited in visual-heavy games";
+
+  return {
+    score,
+    confidence: emxClamp(54 + selectedCount * 4 + emxGetLiveConfidence() * 0.18 - badCount * 12, 0, 96),
+    cpuScore,
+    gpuScore,
+    ramGb,
+    vramGb,
+    bottleneck,
+    bottleneckPenalty,
+    powerHeadroom,
+    thermalHeadroom,
+    readinessPenalty: missingCorePenalty + missingSystemPenalty + compatibilityPenalty,
+    notes: warnings
+  };
+}
+
+function calculateFpsScore() {
+  return getBuildPerformanceModel().score;
+}
+
+function estimateGameFps() {
+  const model = getBuildPerformanceModel();
+  const cpu = getSelectedPart("cpu");
+  const gpu = getSelectedPart("gpu");
+  const ram = getSelectedPart("ram");
+  const storage = getSelectedPart("storage");
+
+  if (!cpu || !gpu || !ram) {
+    return [
+      {
+        game: "Add CPU + GPU + RAM",
+        fps: 0,
+        note: "Select the core performance parts to unlock real game estimates."
+      }
+    ];
+  }
+
+  const cpuFactor = emxClamp(model.cpuScore / 100, 0.42, 1.05);
+  const gpuFactor = emxClamp(model.gpuScore / 100, 0.42, 1.06);
+  const ramFactor = model.ramGb >= 32 ? 1.06 : model.ramGb >= 16 ? 1 : 0.88;
+  const storageFactor = storage && Number(storage.score || 0) >= 85 ? 1.02 : 1;
+  const penaltyFactor = emxClamp(1 - model.bottleneckPenalty / 100 - model.readinessPenalty / 180, 0.68, 1);
+
+  function project({ base, cpuWeight, gpuWeight, ramWeight = 0.08, cap }) {
+    const raw = base *
+      (cpuFactor * cpuWeight + gpuFactor * gpuWeight + ramFactor * ramWeight + storageFactor * 0.03) *
+      penaltyFactor;
+
+    return Math.max(35, Math.min(cap, Math.round(raw)));
+  }
+
+  return [
+    {
+      game: "Fortnite Performance Mode",
+      fps: project({ base: 520, cpuWeight: 0.52, gpuWeight: 0.37, cap: 560 }),
+      note: "CPU-heavy competitive estimate using " + cpu.name + " with " + gpu.name + "."
+    },
+    {
+      game: "Fortnite DX12 High",
+      fps: project({ base: 330, cpuWeight: 0.28, gpuWeight: 0.62, cap: 360 }),
+      note: "GPU-heavy estimate; VRAM and GPU tier matter more here."
+    },
+    {
+      game: "Valorant Competitive",
+      fps: project({ base: 610, cpuWeight: 0.62, gpuWeight: 0.27, cap: 650 }),
+      note: "High-refresh esports estimate. CPU bottleneck has the biggest effect."
+    },
+    {
+      game: "Call of Duty / Warzone",
+      fps: project({ base: 245, cpuWeight: 0.28, gpuWeight: 0.58, ramWeight: 0.12, cap: 280 }),
+      note: model.ramGb >= 32 ? "32GB+ RAM helps large maps and background apps." : "32GB RAM would improve stability for this title."
+    },
+    {
+      game: "GTA V / FiveM",
+      fps: project({ base: 270, cpuWeight: 0.42, gpuWeight: 0.42, ramWeight: 0.12, cap: 300 }),
+      note: "Server scripts/mods can change results; CPU and RAM capacity matter."
+    },
+    {
+      game: "Cyberpunk 2077 High",
+      fps: project({ base: 155, cpuWeight: 0.18, gpuWeight: 0.72, cap: 190 }),
+      note: model.vramGb >= 12 ? "VRAM looks healthy for high textures." : "Lower textures may be needed with this VRAM level."
+    }
+  ];
+}
+
+function getReportNotes() {
+  const model = getBuildPerformanceModel();
+  const notes = [];
+  const score = model.score;
+  const total = calculateTotalPrice();
+  const budget = Number(budgetInput.value || 0);
+  const psu = getSelectedPart("psu");
+  const cpu = getSelectedPart("cpu");
+  const gpu = getSelectedPart("gpu");
+  const cooler = getSelectedPart("cooler");
+  const tier = getPerformanceTier(score);
+  const warnings = getCompatibilityWarnings();
+  const badCount = warnings.filter((warning) => warning.type === "bad").length;
+  const warnCount = warnings.filter((warning) => warning.type === "warn").length;
+
+  notes.push({
+    type: score >= 78 ? "good" : score >= 55 ? "warn" : "bad",
+    text: tier.label + ": " + tier.text + " Estimate confidence: " + Math.round(model.confidence) + "%."
+  });
+
+  if (cpu && gpu) {
+    notes.push({
+      type: model.bottleneckPenalty >= 5 ? "warn" : "good",
+      text: "CPU/GPU balance: " + model.bottleneck + ". CPU score " + model.cpuScore + ", GPU score " + model.gpuScore + "."
+    });
+  }
+
+  if (model.ramGb > 0) {
+    notes.push({
+      type: model.ramGb >= 32 ? "good" : "warn",
+      text: "Memory profile: " + model.ramGb + "GB " + (getSelectedPart("ram")?.ramType || "RAM") + ". " +
+        (model.ramGb >= 32 ? "Good for gaming, streaming, and multitasking." : "16GB works, but 32GB is the safer modern target.")
+    });
+  }
+
+  if (psu) {
+    notes.push({
+      type: model.powerHeadroom >= 150 ? "good" : model.powerHeadroom >= 75 ? "warn" : "bad",
+      text: "Power headroom: estimated " + calculateWattage() + "W draw with " + psu.capacity + "W PSU. Headroom: " + model.powerHeadroom + "W."
+    });
+  }
+
+  if (cpu && cooler) {
+    notes.push({
+      type: model.thermalHeadroom >= 25 ? "good" : model.thermalHeadroom >= 0 ? "warn" : "bad",
+      text: "Cooling check: " + getCoolingText(cpu, cooler) + "."
+    });
+  }
+
+  if (budget > 0) {
+    notes.push({
+      type: total <= budget ? "good" : "bad",
+      text: total <= budget
+        ? "Budget check passed. Build is " + formatMoney(budget - total) + " under budget."
+        : "Budget check failed. Build is " + formatMoney(total - budget) + " over budget."
+    });
+  }
+
+  if (badCount > 0) {
+    notes.push({
+      type: "bad",
+      text: badCount + " blocking compatibility issue(s) found. Fix these before buying parts."
+    });
+  } else if (warnCount > 0) {
+    notes.push({
+      type: "warn",
+      text: warnCount + " warning(s) found. Review these before ordering."
+    });
+  } else if (getBuildStatus() === "Ready") {
+    notes.push({
+      type: "good",
+      text: "Compatibility status is clean. Build is marked ready."
+    });
+  }
+
+  return notes;
+}
+
+function getUpgradeRecommendations() {
+  const recommendations = [];
+  const model = getBuildPerformanceModel();
+  const cpu = getSelectedPart("cpu");
+  const gpu = getSelectedPart("gpu");
+  const ram = getSelectedPart("ram");
+  const storage = getSelectedPart("storage");
+  const psu = getSelectedPart("psu");
+  const cooler = getSelectedPart("cooler");
+  const pcCase = getSelectedPart("case");
+  const motherboard = getSelectedPart("motherboard");
+
+  if (!cpu) recommendations.push({ title: "Add CPU", text: "CPU is required for FPS, compatibility, and motherboard matching." });
+  if (!gpu) recommendations.push({ title: "Add GPU", text: "GPU drives most visual quality and average FPS estimates." });
+  if (!motherboard) recommendations.push({ title: "Add Motherboard", text: "Motherboard is needed to validate socket, RAM type, and platform." });
+  if (!ram) recommendations.push({ title: "Add RAM", text: "RAM affects smoothness, streaming, and modern game stability." });
+  if (!storage) recommendations.push({ title: "Add Storage", text: "NVMe storage improves loading and overall responsiveness." });
+  if (!psu) recommendations.push({ title: "Add PSU", text: "PSU is required to verify power safety and headroom." });
+  if (!pcCase) recommendations.push({ title: "Add Case", text: "Case is needed to verify GPU clearance and airflow." });
+  if (!cooler) recommendations.push({ title: "Add Cooler", text: "Cooler is needed to validate CPU thermal headroom." });
+
+  if (cpu && gpu) {
+    if (model.gpuScore - model.cpuScore >= 18) {
+      recommendations.push({
+        title: "CPU Upgrade Recommended",
+        text: gpu.name + " is stronger than " + cpu.name + ". Upgrade CPU for higher esports FPS and smoother lows."
+      });
+    } else if (model.cpuScore - model.gpuScore >= 18) {
+      recommendations.push({
+        title: "GPU Upgrade Recommended",
+        text: cpu.name + " has more headroom than " + gpu.name + ". Upgrade GPU for higher visual settings."
+      });
+    }
+  }
+
+  if (ram && model.ramGb < 32) {
+    recommendations.push({
+      title: "Move To 32GB RAM",
+      text: "32GB is the safer target for modern games, Discord, browsers, streaming, and background apps."
+    });
+  }
+
+  if (psu && model.powerHeadroom < 150) {
+    recommendations.push({
+      title: "Increase PSU Headroom",
+      text: "Target 150W+ headroom for quieter operation, transient spikes, and future GPU upgrades."
+    });
+  }
+
+  const badWarnings = getCompatibilityWarnings().filter((warning) => warning.type === "bad");
+
+  if (badWarnings.length > 0) {
+    recommendations.unshift({
+      title: "Fix Compatibility First",
+      text: "Blocking compatibility issues matter more than performance upgrades."
+    });
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push({
+      title: "Build Looks Balanced",
+      text: "No obvious weak link found. Next move would be based on your target resolution and refresh rate."
+    });
+  }
+
+  return recommendations.slice(0, 7);
+}
+
+function emxSafeSpec(part, key, fallback = "N/A") {
+  return part && part.specs && part.specs[key] ? part.specs[key] : fallback;
+}
+
+function emxReportPartLine(category, part) {
+  if (!part) {
+    return categoryLabels[category] + ": Not selected";
+  }
+
+  const extras = [];
+
+  if (category === "cpu") extras.push(emxSafeSpec(part, "Cores"), part.socket, Number(part.wattage || 0) + "W");
+  if (category === "gpu") extras.push(part.vram || emxSafeSpec(part, "VRAM"), Number(part.wattage || 0) + "W", Number(part.length || 0) + "mm");
+  if (category === "motherboard") extras.push(part.socket, part.ramType, part.formFactor);
+  if (category === "ram") extras.push(emxSafeSpec(part, "Capacity"), part.ramType || emxSafeSpec(part, "Type"), emxSafeSpec(part, "Speed"));
+  if (category === "storage") extras.push(emxSafeSpec(part, "Capacity"), emxSafeSpec(part, "Type"), emxSafeSpec(part, "Speed"));
+  if (category === "psu") extras.push(Number(part.capacity || 0) + "W", emxSafeSpec(part, "Rating"), emxSafeSpec(part, "Modular"));
+  if (category === "case") extras.push(part.formFactor, "GPU " + Number(part.maxGpuLength || 0) + "mm", emxSafeSpec(part, "Airflow"));
+  if (category === "cooler") extras.push(emxSafeSpec(part, "Type"), "CPU limit " + Number(part.maxCpuWattage || 0) + "W");
+
+  if (part.live) {
+    extras.push(part.source || "Live store", "Trust " + Number(part.trustScore || 0) + "/100");
+  }
+
+  return categoryLabels[category] + ": " + part.name + " | " + extras.filter(Boolean).join(" | ") + " | " + formatMoney(part.price);
+}
+
+function getReportText() {
+  const model = getBuildPerformanceModel();
+  const score = model.score;
+  const tier = getPerformanceTier(score);
+  const lines = [];
+
+  const selected = {
+    cpu: getSelectedPart("cpu"),
+    gpu: getSelectedPart("gpu"),
+    motherboard: getSelectedPart("motherboard"),
+    ram: getSelectedPart("ram"),
+    storage: getSelectedPart("storage"),
+    psu: getSelectedPart("psu"),
+    case: getSelectedPart("case"),
+    cooler: getSelectedPart("cooler")
+  };
+
+  lines.push("EMX PERFORMANCE REPORT");
+  lines.push("Generated by EMX PC Builder");
+  lines.push("Live-data confidence: " + Math.round(model.confidence) + "%");
+  lines.push("=================================================");
+  lines.push("");
+  lines.push("OVERALL");
+  lines.push("Rating: " + tier.grade + " - " + tier.label);
+  lines.push("Summary: " + tier.text);
+  lines.push("FPS Score: " + score + "/100");
+  lines.push("Build Status: " + getBuildStatus());
+  lines.push("Resolution Target: " + getResolutionTarget(score));
+  lines.push("Estimated Wattage: " + calculateWattage() + "W");
+  lines.push("Total Price: " + formatMoney(calculateTotalPrice()));
+  lines.push("Bottleneck Read: " + model.bottleneck);
+  lines.push("");
+  lines.push("SELECTED PARTS");
+  Object.keys(selected).forEach((category) => {
+    lines.push(emxReportPartLine(category, selected[category]));
+  });
+  lines.push("");
+  lines.push("GAME ESTIMATES");
+  estimateGameFps().forEach((game) => {
+    lines.push(game.game + ": " + game.fps + " FPS - " + game.note);
+  });
+  lines.push("");
+  lines.push("BUILD ANALYSIS");
+  getReportNotes().forEach((note) => {
+    lines.push("- " + note.text);
+  });
+  lines.push("");
+  lines.push("UPGRADE PRIORITY");
+  getUpgradeRecommendations().forEach((item, index) => {
+    lines.push((index + 1) + ". " + item.title + ": " + item.text);
+  });
+  lines.push("");
+  lines.push("SUGGESTED SETUP");
+  getPeripheralSuggestions().forEach((item) => {
+    lines.push("- " + item.title + ": " + item.text);
+  });
+  lines.push("");
+  lines.push("IMPORTANT: FPS is an estimate based on selected part tiers, balance, RAM, power/cooling headroom, and compatibility. Real FPS depends on game updates, settings, drivers, maps, servers, and background apps.");
+
+  return lines.join("\n");
+}
+
+async function copyPerformanceReport() {
+  const text = getReportText();
+
+  if (!text.trim()) {
+    showToast("No report text available.", "bad");
+    return;
+  }
+
+  showCopyOverlay();
+  updateCopyOverlay("Analyzing selected parts...", 18);
+
+  await wait(450);
+  updateCopyOverlay("Checking CPU, GPU, RAM, power, and cooling...", 42);
+
+  await wait(550);
+  updateCopyOverlay("Building detailed EMX report...", 68);
+
+  await wait(500);
+  updateCopyOverlay("Report ready for copy or export", 100, true);
+
+  setTimeout(() => {
+    showShareButton(text);
+  }, 120);
+}
+
+function showCopyOverlay() {
+  if (document.getElementById("copyOverlay")) return;
+
+  const overlay = document.createElement("div");
+  overlay.id = "copyOverlay";
+  overlay.className = "emx-copy-overlay";
+
+  overlay.innerHTML = `
+    <div class="emx-export-terminal">
+      <img src="emx-logo.png" alt="EMX" class="emx-terminal-logo">
+
+      <div class="emx-terminal-label">EMX REPORT EXPORT</div>
+
+      <div id="copyOverlayStatus" class="emx-terminal-status">
+        Preparing build analysis...
+      </div>
+
+      <div class="emx-terminal-progress">
+        <div id="copyOverlayProgress" class="emx-terminal-progress-fill"></div>
+      </div>
+
+      <div id="copyOverlayPercent" class="emx-terminal-percent">0%</div>
+
+      <div class="emx-terminal-lines">
+        <p>Build data: selected parts, prices, wattage</p>
+        <p>Performance: game estimates and bottlenecks</p>
+        <p>Safety: compatibility, power, and cooling checks</p>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+}
+
+function showShareButton(text) {
+  const terminal = document.querySelector(".emx-export-terminal");
+
+  if (!terminal) {
+    showToast("Export panel not found.", "bad");
+    return;
+  }
+
+  const oldActions = document.getElementById("copyOverlayActions");
+
+  if (oldActions) {
+    oldActions.remove();
+  }
+
+  const actions = document.createElement("div");
+  actions.id = "copyOverlayActions";
+  actions.className = "emx-terminal-actions";
+
+  actions.innerHTML = `
+    <button id="copyReportOverlayBtn" type="button">COPY REPORT</button>
+    <button id="downloadReportOverlayBtn" type="button">DOWNLOAD TXT</button>
+    <button id="saveReportImageOverlayBtn" type="button">SAVE IMAGE</button>
+    <button id="manualCopyOverlayBtn" type="button">MANUAL COPY</button>
+    <button id="closeExportOverlayBtn" type="button">DONE</button>
+  `;
+
+  terminal.appendChild(actions);
+
+  const copyBtn = document.getElementById("copyReportOverlayBtn");
+  const downloadBtn = document.getElementById("downloadReportOverlayBtn");
+  const imageBtn = document.getElementById("saveReportImageOverlayBtn");
+  const manualBtn = document.getElementById("manualCopyOverlayBtn");
+  const closeBtn = document.getElementById("closeExportOverlayBtn");
+
+  if (copyBtn) {
+    copyBtn.addEventListener("click", async () => {
+      const copied = await copyTextSafe(text);
+      showToast(copied ? "Report copied to clipboard." : "Clipboard blocked. Manual copy opened.", copied ? "good" : "warn");
+
+      if (!copied) {
+        hideCopyOverlay();
+        openManualCopyModal(text);
+      }
+    });
+  }
+
+  if (downloadBtn) {
+    downloadBtn.addEventListener("click", () => downloadReportText(text));
+  }
+
+  if (imageBtn) {
+    imageBtn.addEventListener("click", () => downloadReportImage());
+  }
+
+  if (manualBtn) {
+    manualBtn.addEventListener("click", () => {
+      hideCopyOverlay();
+      openManualCopyModal(text);
+    });
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", hideCopyOverlay);
+  }
+}
+
+async function buildReportCanvasSafe() {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    throw new Error("Canvas engine unavailable.");
+  }
+
+  canvas.width = 1600;
+  canvas.height = 2300;
+
+  const model = getBuildPerformanceModel();
+  const score = model.score;
+  const tier = getPerformanceTier(score);
+  const total = calculateTotalPrice();
+  const wattage = calculateWattage();
+  const status = getBuildStatus();
+
+  const selected = {
+    cpu: getSelectedPart("cpu"),
+    gpu: getSelectedPart("gpu"),
+    motherboard: getSelectedPart("motherboard"),
+    ram: getSelectedPart("ram"),
+    storage: getSelectedPart("storage"),
+    psu: getSelectedPart("psu"),
+    case: getSelectedPart("case"),
+    cooler: getSelectedPart("cooler")
+  };
+
+  const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  bg.addColorStop(0, "#071b12");
+  bg.addColorStop(0.36, "#08131f");
+  bg.addColorStop(0.72, "#0b0d18");
+  bg.addColorStop(1, "#1a0625");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "rgba(40,209,124,0.12)";
+  ctx.fillRect(0, 0, canvas.width, 280);
+
+  drawNeonPanel(ctx, 60, 60, 1480, 2180, 36);
+  await drawReportLogo(ctx, 190, 165);
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#28d17c";
+  ctx.font = "900 28px Arial";
+  ctx.fillText("EMX PERFORMANCE REPORT", 330, 135);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 70px Arial";
+  ctx.fillText(tier.label.toUpperCase(), 330, 215);
+
+  ctx.fillStyle = "rgba(255,255,255,0.72)";
+  ctx.font = "800 25px Arial";
+  ctx.fillText("Part-aware estimate - confidence " + Math.round(model.confidence) + "% - " + model.bottleneck, 330, 260);
+
+  drawBigStat(ctx, 100, 340, 320, 115, "TOTAL", formatMoney(total));
+  drawBigStat(ctx, 455, 340, 320, 115, "WATTAGE", wattage + "W");
+  drawBigStat(ctx, 810, 340, 320, 115, "FPS SCORE", score + "/100");
+  drawBigStat(ctx, 1165, 340, 320, 115, "STATUS", status);
+
+  drawSectionHeader(ctx, "SELECTED PARTS", 100, 540);
+  const partRows = Object.keys(selected).map((category) => ({
+    label: categoryLabels[category],
+    text: selected[category] ? selected[category].name : "Not selected",
+    detail: selected[category]
+      ? emxReportPartLine(category, selected[category]).replace(categoryLabels[category] + ": " + selected[category].name + " | ", "")
+      : "Add this part to complete the build."
+  }));
+
+  partRows.forEach((row, index) => {
+    const x = index % 2 === 0 ? 100 : 815;
+    const y = 585 + Math.floor(index / 2) * 150;
+    drawInfoCard(ctx, x, y, 675, 118, row.label, row.text, row.detail);
+  });
+
+  drawSectionHeader(ctx, "GAME ESTIMATES", 100, 1245);
+  estimateGameFps().slice(0, 6).forEach((game, index) => {
+    const x = index % 3 === 0 ? 100 : index % 3 === 1 ? 575 : 1050;
+    const y = 1290 + Math.floor(index / 3) * 145;
+    drawGameCard(ctx, x, y, 415, 115, game.game, game.fps + " FPS");
+  });
+
+  drawSectionHeader(ctx, "BUILD ANALYSIS", 100, 1635);
+  drawNoteStrip(ctx, 100, 1680, 675, 280, getReportNotes().slice(0, 6).map((note) => note.text));
+
+  drawSectionHeader(ctx, "UPGRADE PRIORITY", 815, 1635);
+  drawNoteStrip(ctx, 815, 1680, 675, 280, getUpgradeRecommendations().slice(0, 5).map((item) => item.title + ": " + item.text));
+
+  drawSectionHeader(ctx, "TARGET", 100, 2045);
+  drawInfoCard(ctx, 100, 2088, 1390, 110, "BEST USE", getResolutionTarget(score), "Power headroom " + model.powerHeadroom + "W - VRAM " + model.vramGb + "GB - RAM " + model.ramGb + "GB");
+
+  ctx.fillStyle = "rgba(255,255,255,0.62)";
+  ctx.font = "800 22px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("Generated by EMX PC Builder - estimates vary by settings, drivers, game version, and background apps", 800, 2240);
+
+  return canvas;
+}
+
+/* =========================================================
    18. EMX CLOUD / GUEST SAVE SEPARATION
    PASTE AT VERY BOTTOM OF script.js
 ========================================================= */
