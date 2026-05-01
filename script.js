@@ -656,7 +656,8 @@ function startSplash() {
         splashScreen.classList.remove("active");
         builderScreen.classList.add("active");
         renderAll();
-        showToast("EMX Builder loaded. Use Live Search for current products.", "good");
+        showToast("Loading live product pictures and prices...", "good");
+        emxAutoLoadLiveCategory();
       }, 350);
     }
   }, 90);
@@ -1415,6 +1416,24 @@ function renderParts() {
   partsList.innerHTML = parts.map(renderPartCard).join("");
 }
 
+function getPartVisualMarkup(part) {
+  const label = categoryLabels[part.category || activeCategory] || "Part";
+
+  if (part.image) {
+    return `
+      <div class="part-thumb-wrap">
+        <img src="${escapeHtml(part.image)}" alt="${escapeHtml(part.name)}" loading="lazy">
+      </div>
+    `;
+  }
+
+  return `
+    <div class="part-thumb-wrap part-thumb-placeholder" aria-label="${escapeHtml(label)} preview">
+      <span>${escapeHtml(label)}</span>
+    </div>
+  `;
+}
+
 function renderPartCard(part) {
   const isSelected = build[activeCategory] === part.id;
 
@@ -1431,6 +1450,8 @@ function renderPartCard(part) {
 
   return `
     <article class="part-card ${isSelected ? "selected" : ""}">
+      ${getPartVisualMarkup(part)}
+
       <div class="part-top">
         <div class="part-info">
           <span>${escapeHtml(part.brand)}</span>
@@ -2864,6 +2885,7 @@ categoryTabs.addEventListener("click", (event) => {
   }
 
   showToast(categoryLabels[activeCategory] + " category opened.", "good");
+  emxAutoLoadLiveCategory();
 });
 
 partsList.addEventListener("click", (event) => {
@@ -4042,22 +4064,38 @@ let emxLiveModeActive = false;
 let emxLiveProducts = [];
 let emxLiveLastQuery = "";
 let emxLiveLoading = false;
+let emxLiveAutoLoadedCategory = "";
 
-function emxGetLiveSearchQuery() {
+const emxDefaultLiveQueries = {
+  cpu: "AMD Ryzen Intel Core desktop processor",
+  gpu: "RTX Radeon desktop graphics card",
+  motherboard: "B650 X670 Z790 B760 desktop motherboard",
+  ram: "DDR5 DDR4 desktop memory kit",
+  storage: "NVMe SSD internal storage",
+  psu: "850W Gold modular PC power supply",
+  case: "ATX airflow desktop PC case",
+  cooler: "CPU cooler AIO air cooler"
+};
+
+function emxGetLiveSearchQuery(queryOverride = "") {
+  if (queryOverride) {
+    return queryOverride;
+  }
+
   const query = searchInput ? searchInput.value.trim() : "";
 
   if (query) {
     return query;
   }
 
-  return categoryLabels[activeCategory] || activeCategory || "pc part";
+  return emxDefaultLiveQueries[activeCategory] || categoryLabels[activeCategory] || activeCategory || "pc part";
 }
 
-function emxGetLiveSearchParams() {
+function emxGetLiveSearchParams(queryOverride = "") {
   const params = new URLSearchParams();
 
   params.set("category", activeCategory);
-  params.set("q", emxGetLiveSearchQuery());
+  params.set("q", emxGetLiveSearchQuery(queryOverride));
 
   if (brandFilter && brandFilter.value && brandFilter.value !== "all") {
     params.set("brand", brandFilter.value);
@@ -4117,15 +4155,17 @@ function emxSetLiveButtonState() {
   liveSearchBtn.textContent = emxLiveModeActive ? "REFRESH LIVE" : "LIVE SEARCH";
 }
 
-async function emxRunLiveSearch() {
+async function emxRunLiveSearch(options = {}) {
   if (emxLiveLoading) {
     return;
   }
 
-  const query = emxGetLiveSearchQuery();
+  const query = emxGetLiveSearchQuery(options.query || "");
 
   if (!query || query.length < 2) {
-    showToast("Type a product search first.", "bad");
+    if (!options.silent) {
+      showToast("Type a product search first.", "bad");
+    }
     return;
   }
 
@@ -4133,9 +4173,11 @@ async function emxRunLiveSearch() {
   emxSetLiveButtonState();
 
   try {
-    showToast("Searching live products...", "good");
+    if (!options.silent) {
+      showToast("Searching live products...", "good");
+    }
 
-    const params = emxGetLiveSearchParams();
+    const params = emxGetLiveSearchParams(query);
     const response = await fetch("/api/search-products?" + params.toString());
 
     const data = await response.json();
@@ -4151,18 +4193,39 @@ async function emxRunLiveSearch() {
     renderParts();
 
     if (emxLiveProducts.length === 0) {
-      showToast("No live products found. Try a different search.", "warn");
+      if (!options.silent) {
+        showToast("No live products found. Try a different search.", "warn");
+      }
       return;
     }
 
-    showToast("Loaded " + emxLiveProducts.length + " live products.", "good");
+    if (!options.silent) {
+      showToast("Loaded " + emxLiveProducts.length + " live products.", "good");
+    } else if (options.auto) {
+      showToast("Live product pictures loaded.", "good");
+    }
   } catch (error) {
     console.error(error);
-    showToast(error.message || "Live search failed.", "bad");
+    if (!options.silent) {
+      showToast(error.message || "Live search failed.", "bad");
+    }
   } finally {
     emxLiveLoading = false;
     emxSetLiveButtonState();
   }
+}
+
+function emxAutoLoadLiveCategory() {
+  if (emxLiveLoading || emxLiveAutoLoadedCategory === activeCategory) {
+    return;
+  }
+
+  emxLiveAutoLoadedCategory = activeCategory;
+  emxRunLiveSearch({
+    auto: true,
+    silent: true,
+    query: emxDefaultLiveQueries[activeCategory]
+  });
 }
 
 function emxExitLiveMode() {
